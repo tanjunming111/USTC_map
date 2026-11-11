@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#234e42">
+  <title>中科大东校区 · 三维校园地图</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="east-osm.js"></script>
+  <script defer src="campus.js"></script>
+  <script defer src="walk-mesh.js"></script>
+  <script defer src="campus-renderer.js"></script>
+  <script defer src="walk.js"></script>
+  <script defer src="atlas.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="m4 14 12-8 12 8-12 8zM4 19l12 8 12-8M10 14l6-4 6 4-6 4z"/></svg></span>
+      <div><div class="brand-title">中国科学技术大学</div><div class="brand-en">三维校园地图</div></div>
+    </div>
+    <nav class="map-modes" aria-label="浏览模式">
+      <button id="atlasMode" aria-pressed="true">校园沙盘</button>
+      <button id="walkMode" aria-pressed="false">第一人称漫游</button>
+    </nav>
+    <div class="mast-meta"><span class="campus-chip">合肥 · 东校区</span></div>
+  </header>
+  <main class="workspace">
+    <aside class="sidebar" aria-label="地标浏览">
+      <div class="intro">
+        <div class="eyebrow"><span></span> 校园地图</div>
+        <h1>东校区</h1>
+        <p>按类别查看地点，或搜索楼名、楼号和道路。</p>
+      </div>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="5.8"/><path d="m15 15 4.5 4.5"/></svg>
+        <input id="search" type="search" placeholder="搜索楼名、楼号或地标" aria-label="搜索楼名、楼号或地标">
+      </div>
+      <div id="filters" class="filters" aria-label="地标分类"></div>
+      <div class="section-label"><span>地点目录</span><span id="count" aria-live="polite"></span></div>
+      <div id="places" class="places"></div>
+      <div class="sidebar-foot"><span class="offline-dot"></span> 本地离线地图 <span>·</span> 沙盘示意</div>
+    </aside>
+    <section class="map" aria-label="校园三维沙盘">
+      <canvas id="scene" tabindex="0" aria-label="三维校园。方向键旋转或调整俯角，加减键缩放，Home 回到全景。"></canvas>
+      <canvas id="atlasScene3D" aria-hidden="true" hidden></canvas>
+      <canvas id="walkScene" tabindex="0" aria-label="第一人称校园漫游，WASD 或方向键行走，按住空格加速，Shift 加前进键上升，Shift 加后退键下降，X 自由下落，拖动观察，Escape 退出鼠标锁定" hidden></canvas>
+      <div class="map-caption"><span class="map-index">东</span><span><b>东校区</b><small id="viewCaption">微缩校园沙盘</small></span></div>
+      <div id="atlasControls" class="controls" aria-label="地图控制">
+        <button id="north" class="compass" title="回到正北" aria-label="回到正北"><svg id="needle" viewBox="0 0 30 30" aria-hidden="true"><path d="m15 4 5.2 18-5.2-4-5.2 4z"/><path class="south" d="m15 18 5.2 4-5.2-18z"/></svg><span>北</span></button>
+        <div class="control-group"><button id="zoomIn" title="放大" aria-label="放大">+</button><button id="zoomOut" title="缩小" aria-label="缩小">−</button></div>
+        <button id="viewMode" title="切换俯视或三维" aria-pressed="false">2D</button>
+        <button id="reset" title="回到全景" aria-label="回到全景">↺</button>
+      </div>
+      <div id="markers" class="markers" aria-label="地图地标"></div>
+      <div id="walkHud" hidden>
+        <div class="walk-locator">
+          <canvas id="miniMap" width="382" height="382" aria-label="漫游位置与朝向"></canvas>
+          <div><span>当前位置</span><b id="walkLocation">西门外</b></div>
+          <button id="mouseLock" type="button" aria-pressed="false">锁定鼠标视角</button>
+        </div>
+        <div class="walk-reticle" aria-hidden="true"></div>
+        <div id="walkLabels" aria-hidden="true"></div>
+        <div id="buildingPrompt" class="building-prompt" role="status" hidden>
+          <span id="buildingPromptMeta"></span>
+          <b id="buildingPromptName"></b>
+        </div>
+        <div class="walk-pad" aria-label="按住方向按钮行走">
+          <button data-key="KeyW" aria-label="向前">↑</button>
+          <button data-key="KeyA" aria-label="向左">←</button>
+          <button data-key="KeyS" aria-label="向后">↓</button>
+          <button data-key="KeyD" aria-label="向右">→</button>
+        </div>
+      </div>
+      <p id="walkStatus" class="walk-status" role="status" hidden></p>
+      <article id="detail" class="detail" hidden aria-live="polite">
+        <button id="closeDetail" title="关闭详情" aria-label="关闭详情">×</button>
+        <div id="detailMeta" class="eyebrow"></div>
+        <h2 id="detailName"></h2>
+        <p id="detailBody"></p>
+        <dl id="detailFacts" class="detail-facts" hidden></dl>
+        <p id="detailTip" class="detail-tip" hidden></p>
+        <div id="detailNearby" class="detail-nearby" hidden></div>
+        <button id="detailWalk" type="button" class="primary">从这里漫游</button>
+        <a id="detailSource" target="_blank" rel="noopener noreferrer" hidden></a>
+        <a id="detailVR" target="_blank" rel="noopener noreferrer" hidden>东区 VR 实景 ↗</a>
+      </article>
+      <div class="map-bottom"><span id="viewHint">拖动旋转 · 滚轮缩放 · Shift + 拖动平移</span><span class="legend"><i></i>建筑 <i></i>水域 <i></i>绿地 <i></i>柏油路 <i></i>步道</span></div>
+      <noscript>启用 JavaScript 后即可查看三维校园。</noscript>
+    </section>
+  </main>
+  <footer><span>东区数据更新于 2026-11-10 · 高度含估算</span><nav aria-label="地图来源"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a> · <a id="source" target="_blank" rel="noopener noreferrer">校方资料</a> · <a href="https://map.ustc.edu.cn/" target="_blank" rel="noopener noreferrer">官方地图</a></nav></footer>
+</body>
+</html>
