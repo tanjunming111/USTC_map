@@ -17,18 +17,20 @@ const campus = (() => {
   const vrUrl = "https://map.ustc.edu.cn/sj/e/index.html";
   const vrPlaces = new Set(["classroom","auditorium","sakura","lakes","pavilion","old-north","west"]);
   const studentServicesColors={wall:"#e6d8b9",roof:"#f3e8cf",base:"#b7a989",trim:"#eee2c4",glass:"#6e8a87"};
+  const teachingBrickFacade={wall:"#ad5c47",roof:"#b0aea4",base:"#817569",trim:"#e4dac8",
+    glass:"#4c666a",floors:4,spacing:7.7,windowWidth:3.7,brick:true,topTrim:.48};
   const facadeStyles = {
-    classroom:{wall:"#ad5c47",roof:"#b0aea4",base:"#817569",trim:"#e4dac8",glass:"#4c666a",floors:3,spacing:7.7,windowWidth:3.7,brick:true},
-    "old-library":{wall:"#a85b49",roof:"#a6a197",base:"#7c7065",trim:"#d8ccba",glass:"#4c6060",spacing:7.2,windowWidth:3.5,brick:true},
+    classroom:teachingBrickFacade,
+    "old-library":{...teachingBrickFacade,base:teachingBrickFacade.wall},
     library:{wall:"#bc754b",roof:"#a6a9a2",base:"#828581",trim:"#c3c2b6",glass:"#527a89",floors:6,spacing:7.2,windowWidth:5.8},
     auditorium:{wall:"#d9ded8",roof:"#aeb6b2",base:"#687872",trim:"#e6e9e1",glass:"#46676c",floors:2,spacing:5.1,windowWidth:4.6,bands:true},
     research:{wall:"#81898c",roof:"#b8bcb8",base:"#565d60",trim:"#b6bbba",glass:"#4b5c63",floors:10,spacing:5.3,windowWidth:3.7,ribbons:true,fins:true},
     history:{wall:"#dad8cc",roof:"#a35b43",base:"#b1ab9e",trim:"#ebe5d7",glass:"#536664",floors:3,spacing:6.8,windowWidth:3.3},
     hall:{wall:"#d1cfc2",roof:"#aeb5b4",base:"#aaa99f",trim:"#e0ded2",glass:"#576b6d",floors:2,spacing:10,windowWidth:5.4},
     "osm-270334648":studentServicesColors,
-    second:{wall:"#e2e4dc",roof:"#c5c8c3",trim:"#f1f1e7",glass:"#4d626b",accent:"#bb6646",floors:8,spacing:5.9,windowWidth:3.8},
+    second:{wall:"#e1e4e3",roof:"#bfc8cc",base:"#afb9bd",trim:"#edf0ec",glass:"#4a606c",accent:"#c67550",floors:8,spacing:5.9,windowWidth:3.8},
     fifth:{wall:"#bbc9c7",roof:"#c4cdca",trim:"#dce3de",glass:"#63828b",floors:5,spacing:5.7,windowWidth:4.2,ribbons:true},
-    expert:{wall:"#b87653",roof:"#858d87",trim:"#ddd9c9",glass:"#527173",floors:4,spacing:6.1,windowWidth:3.7},
+    expert:{wall:"#b86e56",roof:"#a5a099",trim:"#dfc8a5",glass:"#4b6267",floors:3,spacing:6.5,windowWidth:4.5,brick:true,expertEntry:true,roofHeadroom:2.4},
     cafe:{wall:"#dadfd3",roof:"#778d84",trim:"#e0ddd0",glass:"#53756b",floors:1,spacing:5.2,windowWidth:3.8},
     "osm-1135310337":{wall:"#e0dfd4",roof:"#c4cbc5",trim:"#e5e6dc",glass:"#546d76",accent:"#b96d4a",floors:5,spacing:5.6,windowWidth:3.8}
   };
@@ -42,6 +44,7 @@ const campus = (() => {
     [[814,1543.7],[811,1554],[804,1561],[803,1572],[809,1580],[819,1584],[829,1581],[837,1583],[850,1592],[864.4,1592]]
   ];
   const roads=eastOSM.roads.flatMap(road=>{
+    if (road.id==="way/265575541") return [{...road,points:road.points.slice(0,5)}];
     // The surface path starts south of the portal. Its mapped northern stub crosses the planting bed.
     if (road.id==="way/324628892") return [{...road,points:road.points.slice(2)}];
     // Curve the west entrance into the lot instead of ending the road at a separate apron.
@@ -58,12 +61,17 @@ const campus = (() => {
       {...road,points:road.points.slice(0,2)},
       {...road,points:[[531.4,1442],road.points[2]]}
     ];
-    if (["way/308701266","way/308701268","way/365518967"].includes(road.id)) return [];
-    if (road.name==="红专路" || road.id==="way/265583821" || road.id==="way/1135725451") return [{...road,asphalt:true}];
+    if (["way/308701266","way/308701268","way/365518967","way/1135725451"].includes(road.id)) return [];
+    if (road.name==="红专路" || road.id==="way/265583821") return [{...road,asphalt:true}];
     if (road.id==="way/290099137" || road.id==="way/290099139") return [{...road,asphalt:false}];
+    if (road.id==="way/290099138") return [{...road,width:6,asphalt:false}];
+    const squareConnections={"way/306371633":[649.18,734.86],"way/306371635":[652.5,785.75],
+      "way/306496883":[671.08,733.44],"way/306496884":[675.57,782.63]};
+    if(squareConnections[road.id]) return [{...road,points:[squareConnections[road.id],...road.points.slice(1)]}];
     if (road.id==="way/306373632" || road.id==="way/290099140") return [{...road,width:3.8,asphalt:false}];
     return [road];
-  }).map(road=>road.asphalt || ["天使路","勤奋路","志学路"].includes(road.name)
+  }).map(road=>road.id==="way/265583820" ? {...road,previousWidth:4.9,width:4.9,sidewalk:.55} :
+    road.asphalt || ["天使路","勤奋路","志学路"].includes(road.name)
     ? {...road,previousWidth:road.width+1.5,width:(road.width+1.5)*1.25,sidewalk:1.55}
     : {...road,previousWidth:road.width,width:road.width*1.12});
   const roadColors = {asphalt:"#626969",paving:"#d7ddd5",sidewalk:"#bcbeb1"};
@@ -78,16 +86,40 @@ const campus = (() => {
   const redDormFacade={...dormFacade,wall:"#a86652",trim:"#c6b0a0",brick:true,fins:false};
   const creamDormFacade={...dormFacade,wall:"#e0d8af",trim:"#ded7b6",floors:5};
   const numberedDorm=(number,style)=>({name:"学生公寓"+number+"号楼",number,kind:"dorm",aliases:number+"#",style});
-  const fifthHousingStyle={...labFacade,wall:"#d8cfb9",roof:"#bfc4bb",trim:"#ddd6c4",glass:"#657c7c",floors:5};
+  // Match the existing 19 and 20 residential palette in both views.
+  const fifthHousingStyle={wall:"#d9c9a5",roof:"#e8ddc1",base:"#aba080",trim:"#d9d7c4",glass:"#728982",floors:5,spacing:6.5,windowWidth:3.7};
+  const eastHousingStyles=[
+    {...fifthHousingStyle,wall:"#cec8b8",roof:"#bcc4c2",trim:"#e1d9c8",fins:true,ribbons:true},
+    {...fifthHousingStyle,wall:"#d7dcd7",roof:"#bdc6c8",trim:"#e5e5da",glass:"#647983",balconies:true},
+    {...fifthHousingStyle,wall:"#bec8cb",roof:"#aab8bc",trim:"#d2d7d4",accent:"#a3b1b6",fins:true},
+    {...fifthHousingStyle,wall:"#d9dbd3",roof:"#ac645b",trim:"#e3e0d4",accent:"#a9665b",balconies:true,pitchedRise:3.4}
+  ];
   const buildingDetails={
+    "way/265575551":{height:21.5},
+    "way/265575547":{entry:[893.755,319.615]},
+    "way/267646979":{style:facadeStyles.fifth},
+    "way/1135310357":{name:"东区幼儿园",short:"幼儿园",number:36,kind:"service",aliases:"幼儿园36# 36号楼 科大幼儿园",height:12,
+      description:"幼儿园按平面图围绕36–39号楼布置，分设活动场地和楼间步道。",
+      style:{...labFacade,wall:"#8fb7c9",roof:"#becad0",trim:"#d1dce0",glass:"#577a91",accent:"#b77eac",floors:2}},
+    "way/1135310358":{height:10,style:{...labFacade,wall:"#dbd0b3",roof:"#c5cbc2",accent:"#b36e59",floors:2}},
+    "way/1135310359":{height:9,style:{...labFacade,wall:"#dcc0a1",roof:"#bbc6c5",accent:"#669496",floors:2}},
+    "way/1135310360":{height:8,style:{...labFacade,wall:"#d5d7b7",roof:"#bac6c2",accent:"#ae7764",floors:2}},
+    "way/1135360036":{style:eastHousingStyles[1]},
+    "way/1135360037":{style:eastHousingStyles[1]},
+    "way/1135360038":{style:eastHousingStyles[1]},
+    "way/1135360039":{style:eastHousingStyles[1]},
+    "way/1135360044":{style:eastHousingStyles[1]},
+    "way/1135360045":{style:eastHousingStyles[1]},
+    "way/1135310355":{name:"幼儿园35号楼",short:"35号楼",number:35,kind:"service",aliases:"35# 幼儿园 35号楼",
+      description:"东区幼儿园北侧的35号楼。",style:{...labFacade,wall:"#78a8c6",roof:"#92b4cc",trim:"#a9c9dc",glass:"#496e85",floors:3}},
     "way/334120282":{name:"7号楼",number:7,kind:"housing",aliases:"7#",style:fifthHousingStyle},
     "way/334120556":{name:"8号楼",number:8,kind:"housing",aliases:"8#",style:fifthHousingStyle},
     "way/334120281":{name:"15号楼",number:15,kind:"housing",aliases:"15#",style:fifthHousingStyle},
     "way/334120557":{name:"16号楼",number:16,kind:"housing",aliases:"16#",style:fifthHousingStyle},
-    "way/267624863":{height:28,style:{...dormFacade,wall:"#cbb9a3",accent:"#a7624a"}},
-    "way/267624864":{height:28,style:dormFacade},
-    "way/267624865":{height:28,style:dormFacade},
-    "way/267624866":{height:28,style:{...dormFacade,accent:"#aa654d"}},
+    "way/267624863":{height:28,style:{...dormFacade,wall:"#d2cabb",roof:"#aebdc7",base:"#955f51",facadeBaseHeight:9.3,spacing:4.4,windowWidth:3.45,glass:"#425359"}},
+    "way/267624864":{height:28,style:{...dormFacade,wall:"#d9d8ca",roof:"#d1d3c9",base:"#aa6c55",facadeBaseHeight:4.4,centerAccent:"#a76b57"}},
+    "way/267624865":{height:28,style:{...dormFacade,wall:"#d8d5c6",roof:"#ced1c7",base:"#a46050",facadeBaseHeight:8.6,glass:"#40545b",windowWidth:3.6,fins:false,balconies:false}},
+    "way/267624866":{height:28,style:{...dormFacade,wall:"#d6d7cc",roof:"#c8cec7",base:"#a56755",facadeBaseHeight:7.8,centerAccent:"#a56654"}},
     "way/270048432":numberedDorm(229,redDormFacade),
     "way/270048433":numberedDorm(221,redDormFacade),
     "way/271958260":numberedDorm(215,redDormFacade),
@@ -110,7 +142,7 @@ const campus = (() => {
       {shape:poly(837,419,875,417,876,429,838,432),top:36.5,style:{wall:"#d5dad7",roof:"#9da6a8"}}
     ]},
     "way/306371640":{name:"校车队",aliases:"校车停车场 巴士停车场",description:"站台西北侧的校车停放区，入口接校内支路。"},
-    "way/306371643":{name:"巴士站台",kind:"service",aliases:"校园建筑M061 校车站台 候车亭",height:4.45,description:"校车队旁的路边候车站台，向道路一侧敞开。"},
+    "way/306371643":{name:"巴士站台",kind:"service",aliases:"校园建筑M061 校车站台 候车亭",height:5.34,description:"校车队旁的路边候车站台，向道路一侧敞开。"},
     "way/285860077":{name:"校医院综合楼",short:"校医院综合楼",kind:"service",aliases:"校医院 东区医院",
       description:"沿太湖路的校医院主楼，毗邻门诊楼。名称按参考截图标注。",
       entry:[244,1533],baseHeight:12,style:{...hospitalFacade,floors:3},masses:[
@@ -178,7 +210,7 @@ const campus = (() => {
   const landmarks = [
     {id:"lakes",name:"眼镜湖",short:"眼镜湖",kind:"landscape",x:586,y:518,h:2,featured:true,aliases:"双湖 西湖 东湖",description:"位于第一教学楼北侧。两片水面分列樱花大道东西两侧，从空中俯瞰像一副眼镜。"},
     {id:"sakura",name:"樱花大道",short:"樱花大道",kind:"landscape",x:646,y:473,h:2,featured:true,aliases:"玉泉北路 樱花",description:"这条路从眼镜湖两片水面之间穿过，本名玉泉北路。春天的樱花是东区最有辨识度的景色之一。"},
-    {id:"classroom",name:"第一教学楼",short:"一教",kind:"academic",x:651,y:609,h:30,featured:true,aliases:"一教 教一楼 201 第一教学楼",description:"位于眼镜湖南侧。一教的红砖立面朝向樱花大道，北侧入口有宽大的灰色门廊。"},
+    {id:"classroom",name:"第一教学楼",short:"一教",kind:"academic",x:651,y:609,h:30,featured:true,aliases:"一教 教一楼 201 第一教学楼",description:"位于眼镜湖南侧。北侧入口朝向樱花大道，南侧入口朝向郭沫若广场。"},
     {id:"pavilion",name:"一鉴亭",short:"一鉴亭",kind:"landscape",x:718,y:471,h:14,featured:true,aliases:"六角亭 东湖",description:"六角亭坐落在眼镜湖东湖，由曲折的回廊与岸边相连。"},
     {id:"square",name:"郭沫若广场",short:"郭沫若广场",kind:"landscape",x:650,y:778,h:2,featured:true,aliases:"郭沫若像 郭广 广场",description:"广场位于第一教学楼与图书馆之间，设有中国科大首任校长郭沫若的塑像。"},
     {id:"library",name:"东区图书馆",short:"图书馆",kind:"academic",x:673,y:931,h:49,featured:true,aliases:"东校区图书馆 东区馆 图书馆 新图书馆",description:"东区新馆共六层。橙色立面之间嵌着灰色入口门框，宽台阶通向玻璃门厅。"},
@@ -195,7 +227,7 @@ const campus = (() => {
     {id:"activity",name:"东区活动中心",short:"东区活动中心",kind:"service",x:894,y:1033,h:32,aliases:"东活 活动中心",description:"位于东区学生食堂南侧。底部为多层架空空间，二楼设有美食广场。"},
     {id:"hall",name:"东区大礼堂",short:"大礼堂",kind:"academic",x:516,y:1374,h:32,aliases:"礼堂 331",description:"位于校园南部，靠近环境与资源楼。"},
     {id:"physics",name:"物理楼",short:"物理楼",kind:"academic",x:717,y:1460,h:28,aliases:"物理学院 物理学系",description:"位于东区西侧，靠近西大门和陶瓷艺术中心。"},
-    {id:"old-library",name:"东区老图书馆",short:"老图书馆",kind:"academic",x:669,y:878,h:27,aliases:"207 办公楼 老馆",description:"校方平面图上标为办公楼 207#，位于东区新图书馆北侧，是东区早期的红砖建筑。"},
+    {id:"old-library",name:"办公楼",short:"办公楼",kind:"admin",x:669,y:878,h:27,aliases:"207 207# 东区老图书馆 老图书馆 老馆",description:"办公楼（207 号楼）位于东区图书馆北侧，为四层红砖建筑。"},
     {id:"fifth",name:"第五教学楼",short:"五教",kind:"academic",x:949,y:339,h:34,aliases:"教五楼 五教",description:"位于北门东侧、教学行政楼东南方向。"},
     {id:"research",name:"物质科学教研 B 楼",short:"物质科研 B 楼",kind:"academic",x:895,y:1314,h:57,aliases:"物质科学教研B楼 物质科研楼 科研楼 B栋",description:"物质科学教研楼群的 B 楼。立面参考实景中的灰白竖向构件和蓝色玻璃。"}
   ];
@@ -252,7 +284,7 @@ const campus = (() => {
   };
   const types = {residential:"service",dormitory:"service",apartments:"service",hospital:"service",commercial:"service",retail:"service",garages:"service"};
   const defaultHeights = {residential:15,dormitory:17,apartments:16,university:13,hospital:12,commercial:10,school:9,retail:5,garages:4,grandstand:4};
-  const knownLevels = {classroom:4,library:6,second:8,fifth:5,activity:6};
+  const knownLevels = {classroom:4,library:6,"old-library":4,second:8,fifth:5,activity:6};
   const northTowers={"way/270537512":16,"way/270537513":15,"way/270537514":13};
   const schoolNumbers = new Set([320,321,322,323,366,367,229,230,221,215,222,216]);
   const venueIds = new Set(["auditorium","activity","hall","track"]);
@@ -264,28 +296,40 @@ const campus = (() => {
   const gateWays = new Set(["way/298813543","way/1135310350"]);
   // These three residential footprints are estimated from the supplied campus plan.
   const fifthHousing=[
-    [9,poly(909,466,955,463,956,478,910,481)],
-    [17,poly(980,463,1029,460,1030,475,981,478)],
-    [18,poly(982,490,1042,486,1043,503,983,507)]
+    [9,poly(907,435,955,432,956,447,908,450)],
+    [17,poly(980,435,1029,432,1030,447,981,450)],
+    [18,poly(982,479,1042,475,1043,492,983,496)]
   ].map(([number,shape])=>({id:"plan/fifth-housing-"+number,shape,name:number+"#",kind:"residential"}));
+  // The campus plan places 7 and 15 immediately south of Fifth Teaching Building.
+  const fifthHousingOffsets={
+    "way/334120282":{north:42,eastLimit:960},"way/334120281":{north:41},
+    "way/334120556":{north:35},"way/334120557":{north:40,westLimit:978}
+  };
   const buildings = [...eastOSM.buildings,...fifthHousing].filter(building =>
     !gateWays.has(building.id) && building.id!=="way/1135842417").map((data,i) => {
     let place=landmarksByFeature.get(data.id);
     const landmarkId=place?.id;
     const detail=buildingDetails[data.id];
+    const offset=fifthHousingOffsets[data.id];
+    const shape=offset ? data.shape.map(([x,y])=>[
+      Math.max(offset.westLimit??-Infinity,Math.min(offset.eastLimit??Infinity,x)),y-offset.north
+    ]) : data.shape;
     const model="M"+String(i+1).padStart(3,"0");
     const number=detail?.number || buildingNumbers[landmarkId] || nameNumbers[data.name] || Number(data.name.match(/^(\d+)#$/)?.[1]) || undefined;
     const towerLevels=northTowers[data.id];
     const levels=landmarkId==="cafe" ? 1 : data.levels||knownLevels[landmarkId];
     const height=detail?.height??detail?.masses?.reduce((top,part)=>Math.max(top,part.top),detail.baseHeight)??
       (landmarkId==="cafe" ? 4 : (levels||towerLevels) ? (levels||towerLevels)*3.2 : defaultHeights[data.kind]||10)*unit;
-    const style=detail?.style || (landmarkId==="canteen" ? {wall:facadeStyles.classroom.wall,roof:"#b9c2bf",trim:"#d3b09b",glass:"#566f76",bands:true} :
+    const eastHousing=data.kind==="residential"&&number&&xIsEastern(data.shape);
+    const style=detail?.style || (eastHousing ? eastHousingStyles[[78,79,80].includes(number)?3:
+      data.shape[0][1]>900?2:data.shape[0][1]>550?1:0] : null) ||
+      (landmarkId==="canteen" ? {wall:facadeStyles.classroom.wall,roof:"#b9c2bf",trim:"#d3b09b",glass:"#566f76",bands:true} :
       data.name==="行政楼" ? facadeStyles.history :
       facadeStyles[landmarkId||"osm-"+data.id.split("/")[1]] || (landmarkId?.startsWith("research-") ? facadeStyles.research : null));
     const fallback=number ? (schoolNumbers.has(number) ? "学生公寓" : "")+number+"号楼" : "校园建筑 "+model;
     const name=place?.name || detail?.name || (data.name && !/^\d+#$/.test(data.name) ? data.name : fallback);
     const type=types[data.kind]||(landmarkId==="auditorium"?"accent":"academic");
-    const [x,y]=data.shape.reduce(([a,b],[px,py]) => [a+px/data.shape.length,b+py/data.shape.length],[0,0]);
+    const [x,y]=shape.reduce(([a,b],[px,py]) => [a+px/shape.length,b+py/shape.length],[0,0]);
     if (!place && (data.name||detail?.name)) {
       let kind=type==="service"?"service":"academic";
       if (adminNames.has(name)) kind="admin";
@@ -300,11 +344,75 @@ const campus = (() => {
       landmarks.push(place);
     }
     if(place) {place.x=x;place.y=y;place.h=height;}
-    return {shape:data.shape,height,type,towerLevels,entry:detail?.entry,baseHeight:detail?.baseHeight,masses:detail?.masses,
+    return {shape,height,type,towerLevels,entry:detail?.entry,baseHeight:detail?.baseHeight,masses:detail?.masses,
       kind:place?.kind||data.kind,osmKind:data.kind,id:place?.id,osm:data.id,
       model,number,name,short:place?.short||name,x,y,levels,located:!!(place||data.name||number),
       style:style||levels ? {...style,...(levels ? {floors:levels} : {})} : data.id.startsWith("plan/")?fifthHousingStyle:null};
   });
+  function xIsEastern(shape) {
+    return shape.every(([x])=>x>970);
+  }
+  function steppedEntrance(building,edge,span,reach,count,rise,center=.5,landingDepth=1.8) {
+    const [x,y]=building.shape[edge], [nx,ny]=building.shape[(edge+1)%building.shape.length];
+    const dx=nx-x,dy=ny-y,length=Math.hypot(dx,dy);
+    const point=(t,d)=>[x+dx*t+dy*d/length,y+dy*t-dx*d/length];
+    const footprint=(half,front,back)=>[point(center-half,front),point(center+half,front),point(center+half,back),point(center-half,back)];
+    return {edge,center,target:point(center,0),view:point(center,reach+9),
+      apron:footprint(span+.055,reach+1.2,0),
+      steps:Array.from({length:count},(_,i)=>{
+        const tread=(reach-landingDepth)/(count-1);
+        const front=reach-i*tread,back=i===count-1?0:front-tread;
+        return {shape:footprint(span,front,back),bottom:0,top:(i+1)*rise};
+      })};
+  }
+  const junior=buildings.find(b=>b.osm==="way/1135310337");
+  junior.height=buildings.find(b=>b.id==="classroom").height;
+  landmarks.find(p=>p.id===junior.id).h=junior.height;
+  const juniorEntry=steppedEntrance(junior,12,.17,20.2,15,2.5/15,.585,12.5);
+  const expertBuilding=buildings.find(building=>building.id==="expert");
+  expertBuilding.shape.splice(4,3);
+  expertBuilding.entry={edge:3,center:.29};
+  expertBuilding.height+=expertBuilding.style.roofHeadroom;
+  landmarks.find(place=>place.id==="expert").h=expertBuilding.height;
+  const expertCars=[[726,389.5,"#d7d8d2"],[731,389.5,"#4f5b65"],
+    [727,416,"#6c4a46"],[732,416,"#d6d8d5"]];
+  const expertTree={x:752,y:398,r:7.6,heightScale:1.15,whiteBase:true};
+  const outerPullUpBars=[{x:328,y:887,height:2.55},{x:339,y:883,height:3.05},
+    {x:350,y:880,height:3.4},{x:361,y:880,height:2.8},
+    {x:372,y:883,height:3.05},{x:383,y:886,height:2.55},
+    {x:394,y:889,height:3.4},{x:405,y:891,height:2.8}];
+  const pullUpBars=[...outerPullUpBars,...outerPullUpBars.map(bar=>({...bar,y:bar.y+12}))];
+  const trackStage={shape:box(272,1006,22,36),top:4.8,
+    walls:[box(272,1006,2,36),box(274,1006,19,2),box(274,1040,19,2)],roofHeight:14.5};
+  const officeBuilding=buildings.find(b=>b.id==="old-library");
+  const officeEntry=steppedEntrance(officeBuilding,2,.18,7,6,.24);
+  officeBuilding.firstFloor=officeEntry.steps.at(-1).top;
+  officeBuilding.height+=officeBuilding.firstFloor;
+  placesById.get("old-library").h=officeBuilding.height;
+  const kindergarten={
+    sign:{shape:box(1166,667,1.15,10.5),top:3.15},
+    signView:[1179,672.25,1167.15,672.25],
+    yard:poly(1037,637,1168,632,1172,739,1077,743,1075,714,1040,715),
+    courts:[box(1093,636,39,23),box(1048,688,26,22),box(1146,697,19,35)],
+    paths:[[[1138.36,684.91],[1136.06,660.78],[1129,659]],[[1138.36,684.91],[1143,696],[1155,697]],
+      [[1080,682],[1077,697],[1080,713],[1080,738]]],
+    eastFence:[[1168,632],[1170,678],[1170.3,689],[1172,739]],
+    playEquipment:[{shape:box(1102,643,7.8,4.4),top:3.3},{shape:box(1151,714,6,5),top:2.65}]
+  };
+  const hallFront={edge:2,center:.5,point:[568.205,1370.015],apron:poly(568,1348,584,1348,587,1394,570,1394)};
+  const hallStepPoint=(t,reach)=>[569.39-2.37*t+reach,1397.95-55.87*t-reach*.0424];
+  hallFront.steps=Array.from({length:5},(_,i)=>{
+    const reach=6-i*.95, next=i===4?0:reach-.95;
+    return {shape:[hallStepPoint(.18,reach),hallStepPoint(.82,reach),hallStepPoint(.82,next),hallStepPoint(.18,next)],
+      bottom:0,top:(i+1)*.24};
+  });
+  const researchBuilding=buildings.find(b=>b.osm==="way/267646979");
+  landmarks.push({id:"network-center",name:"网络中心",short:"网络中心",kind:"academic",x:1080,y:326,h:researchBuilding.height,
+    aliases:"网络中心 科研楼",description:"按校园平面图标在科研楼南侧相连的区域。"});
+  const hallParking={outline:box(607,1365,76,28),rows:[{x:610,y:1366,count:14},{x:610,y:1384,count:14}],
+    entrance:[[590.2,1385],[607,1385]]};
+  landmarks.push({id:"hall-parking",name:"大礼堂旁停车场",short:"礼堂停车场",kind:"service",x:646,y:1379,h:.1,
+    aliases:"大礼堂停车场",description:"位于大礼堂东侧，停车位与入口按校园平面图布置。"});
   const bikeShelter={
     shape:box(816,366,34,10.5), apron:box(813,363,42,21),
     path:[[854,377],[868,377],[886.8,377]],
@@ -314,16 +422,23 @@ const campus = (() => {
     }))),
     posts:[817,827.6,838.4,849].map(x=>({shape:box(x-.14,371.11,.28,.28),top:4.76}))
   };
-  const fifthForecourt=poly(919,334.4,979,332.4,979.3,343.5,919.4,345.5);
+  const fifthForecourt=poly(888.55,316.71,898.96,322.52,889.5,341.3,874.5,338.2);
   landmarks.push({id:"fifth-bike-shelter",name:"五教自行车棚",short:"自行车棚",kind:"service",x:833,y:372,h:4.85,
     aliases:"五教 停车棚 自行车",description:"五教西南侧、专家公寓2号楼北侧的自行车停放区，步道向东接石榴园路。"});
+  const shelterCeiling=4.92;
   const busDepot={
+    ceiling:shelterCeiling,
+    signCenter:[529.21,650.6,4.224],
     yard:poly(487,578,507,578,510,624,489,627),
     buses:[491.8,497.8,503.8].map(x=>({x,y:609,shape:box(x-1.8,601,3.6,16),top:4.55})),
     shelter:buildings.find(building=>building.id==="osm-306371643"),
-    supports:[632,644,657].map(y=>({shape:box(527.4+(y-632)*.07,y,.42,.42),top:4.15})),
-    backWall:{shape:poly(518.7,630,519.3,630,521.4,662,520.8,662),top:2.7}
+    supports:[617,630,644,658].map(y=>({shape:box(528.2,y,.42,.42),top:shelterCeiling})),
+    backWall:{shape:box(522.3,614.5,.57,48),top:shelterCeiling}
   };
+  busDepot.shelter.shape=box(522,614,7.2,49);
+  const shelterCenter={x:525.6,y:638.5};
+  Object.assign(busDepot.shelter,shelterCenter);
+  Object.assign(landmarks.find(place=>place.id===busDepot.shelter.id),shelterCenter);
   const libraryShape=buildings.find(building=>building.id==="library").shape;
   const libraryFront={edge:libraryShape.findIndex(([x,y])=>x===690.86&&y===947.67),span:.465,stairGap:.14};
   const doorEdge=libraryShape[libraryFront.edge], doorEnd=libraryShape[libraryFront.edge+1];
@@ -352,6 +467,19 @@ const campus = (() => {
     {id:"south-tennis",name:"东区网球场",short:"网球场",kind:"venue",x:466,y:1226,h:.1,
       aliases:"网球 国际学院",description:"国际学院与学生服务中心西侧的室外网球场。"}
   );
+  const secondBuilding=buildings.find(building=>building.id==="second");
+  const clipSecond=(shape,boundary)=>shape.flatMap((a,i)=>{
+    const b=shape[(i+1)%shape.length], da=boundary(a),db=boundary(b);
+    const points=da<=0?[a]:[];
+    if(da*db<0) points.push(a.map((v,j)=>v+(b[j]-v)*da/(da-db)));
+    return points;
+  });
+  const secondUpper=clipSecond(clipSecond(secondBuilding.shape,([,y])=>y-781.5),([x])=>818.5-x);
+  const mainStyle={...secondBuilding.style,wall:"#f0f0eb",roof:"#f0f0eb",trim:"#faf9f3",base:"#f0f0eb",
+    glass:"#4b606b",accent:undefined,floors:6,roofEquipment:false};
+  secondBuilding.baseHeight=2*3.2*unit;
+  secondBuilding.masses=[{shape:secondUpper,top:secondBuilding.height,style:mainStyle}];
+  secondBuilding.style={...mainStyle,glass:"#64808c",floors:2};
   const activityBuilding=buildings.find(building=>building.id==="activity");
   activityBuilding.shape=poly(847,1004,854,1004,853,983,931.5,978,936,1062,855,1067,853,1046,848,1046);
   // Limit the expansion beside fixed footprints without narrowing the original access.
@@ -463,14 +591,15 @@ const campus = (() => {
     columns:[[850,1005,3.35,3.2],[851.5,1038,3.35,3.2],[854,988,2.5,2.6],[857,1055,2.6,2.4],
       [882,984,2.4,2.6],[882,1058,2.4,2.5]].map(([x,y,w,d])=>({shape:box(x,y,w,d),top:14.3})),
     core:{shape:poly(wallX,988,931.6,988,935.1,1058,wallX,1058),top:14.3},
-    decks:[...turnLandings,...galleryLevels.flatMap(top=>[
-      {shape:box(galleryX,997,wallX-galleryX,52),rail:[...[[997,landingEnds[0]],
+    decks:[...turnLandings,...galleryLevels.flatMap((top,level)=>[
+      ...(level===0?[{shape:box(galleryX,997,wallX-galleryX,52),rail:[...[[997,landingEnds[0]],
         [landingEnds[0]+landingDepth,landingEnds[1]-landingDepth],[landingEnds[1],1049]]
-        .map(([a,b])=>[[galleryX,a],[galleryX,b]]),[[galleryX,997],[wallX,997]],[[galleryX,1049],[wallX,1049]]]},
+        .map(([a,b])=>[[galleryX,a],[galleryX,b]]),[[galleryX,997],[wallX,997]],[[galleryX,1049],[wallX,1049]]]}]:[]),
       ...landingEnds.map((end,i)=>{
         const y=i===0?end:end-landingDepth, inside=i===0?end+landingDepth:y;
         return {shape:box(stairX,y,galleryX-stairX,landingDepth),rail:[
-          [[stairX,inside],[galleryX,inside]],[[stairX,end],[stairX,inside]],[[returnX+stairWidth,end],[galleryX,end]]
+          [[stairX,inside],[galleryX,inside]],[[stairX,end],[stairX,inside]],[[returnX+stairWidth,end],[galleryX,end]],
+          ...(level===0?[]:[[[galleryX,y],[galleryX,y+landingDepth]]])
         ]};
       })
     ].map(deck=>({...deck,bottom:top-.62,top})))],
@@ -478,8 +607,16 @@ const campus = (() => {
   };
   for(const {top,rail} of activityModel.decks) for(const [a,b] of rail) activityRails.push([[...a,top],[...b,top]]);
   const northEntry=placesById.get("north");
-  const northStone=box(northEntry.x-21,northEntry.y-.5,12.5,4.6);
+  const northStone=box(northEntry.x-34,northEntry.y+1.7,18.75,6.9);
+  const northStoneTop=7.12;
   const northBarrier=box(northEntry.x+5.8,northEntry.y-.9,1.1,1.8);
+  const northParking={
+    outline:box(668,244,83,43),
+    entrance:[[750,265.8],[784.31,265.92]],
+    rows:[{x:672,y:247,count:15},{x:672,y:276,count:15}]
+  };
+  landmarks.push({id:"north-parking",name:"北门停车场",short:"北门停车场",kind:"service",x:708,y:265,h:.1,
+    aliases:"北门停车 校名石停车场",description:"位于北门校名石西南侧，出入口接北门内道路。"});
   const trees = [];
   let seed = 1960;
   const random = () => (seed = (Math.imul(seed,1664525)+1013904223) >>> 0) / 4294967296;
@@ -528,20 +665,24 @@ const campus = (() => {
       return squarePoint(r*Math.cos(a),stepDiameter+r*Math.sin(a)*.75);
     })),
     flagpoles:[-3.5,0,3.5].map(u=>squarePoint(u,stepDiameter)),
-    shrubs:[[-18,22],[-18,40],[-18,48],[-19,81],[-17,94],[18,33],[20,41],[19,49],[19,87],[19,95]]
+    shrubs:[[-21,22],[-21,32],[-21,40],[-21,48],[-21,59],[-21,71],[-21,81],[-21,94],[-21,103],
+      [19,26],[20,33],[21,41],[21,49],[32,60],[32,72],[32,84],[20,97],[20,105]]
       .map(([u,v])=>squarePoint(u,v))
   };
   const parking={
-    outline:poly(407,786,535,784,542,816,548,873,551,907,473,912,466,903,449,893,424,885,410,881,405,859,405,815),
+    outline:poly(407,786,520,784,527,816,533,873,536,908,473,912,466,903,449,893,424,885,410,881,405,859,405,815),
     lawn:poly(399,773,543,770,551,822,520,830,468,831,408,830,399,815),
-    entrances:[box(459,767.5,8,21),box(536,800,19,8)],
-    rows:[{x:415,y:787,count:24},{x:414,y:802,count:24},{x:421,y:817,count:19},
-      {x:417,y:842,count:24},{x:419,y:865,count:24},{x:456,y:888,count:17}],
+    entrances:[box(459,767.5,8,21),box(520,800,35,8)],
+    rows:[{x:415,y:787,count:20},{x:414,y:802,count:21},{x:421,y:817,count:19},
+      {x:417,y:842,count:22},{x:419,y:865,count:22},{x:456,y:888,count:15}],
     cars:[[417.5,791,"#d3d7d5"],[432.5,791,"#536472"],[452.5,791,"#a55d51"],[482.5,791,"#d8d7cd"],
-      [507.5,791,"#58615e"],[527.5,791,"#b9bfc4"],[421.5,806,"#484b4f"],[446.5,806,"#d9d9d3"],
+      [507.5,791,"#58615e"],[502.5,791,"#b9bfc4"],[421.5,806,"#484b4f"],[446.5,806,"#d9d9d3"],
       [481.5,806,"#697b83"],[516.5,806,"#95594a"],[433.5,821,"#d8d6cb"],[468.5,821,"#4b5d65"],
       [429.5,846,"#7a8687"],[484.5,846,"#d2d5d1"],[511.5,869,"#9c6355"],[488.5,892,"#505d65"]]
   };
+  lawns.push(poly(382,797,406,805,410,883,387,885),
+    poly(412,884,449,892,472,910,552,904,557,926,470,936,438,920,409,906),
+    poly(520,785,543,780,551,812,575,809,599,826,609,873,606,910,586,921,535,913,532,874,526,816));
   const teachingForecourt = poly(617,560,687,555,690,580,620,585);
   // The buried way joins the cut-off road north of the west gate to Science Avenue.
   const tunnel={half:8.1*1.1,depth:7,ceiling:-.56,fenceTop:1.36};
@@ -580,16 +721,23 @@ const campus = (() => {
     return {a,b,covered:i>=eastPortal&&i<westPortal,shape:[a.edges[0],a.edges[1],b.edges[1],b.edges[0]]};
   });
   tunnel.apron=tunnel.segments[0].shape;
+  const mouthEdge=tunnel.segments[0].a.edges;
+  const mouthDirection=eastMouth.map((v,i)=>v-junction[i]);
+  const mouthLength=Math.hypot(...mouthDirection);
+  const offsetMouth=(point,distance)=>point.map((v,i)=>v+mouthDirection[i]*distance/mouthLength);
+  tunnel.roadJoin=[offsetMouth(mouthEdge[0],-1.25),offsetMouth(mouthEdge[1],-1.25),
+    offsetMouth(mouthEdge[1],1.25),offsetMouth(mouthEdge[0],1.25)];
   tunnel.portalLawn=tunnel.segments[eastPortal].shape;
   const entry=tunnel.segments[0];
   tunnel.apronFences=entry.a.edges.map((point,i)=>{
     const end=entry.b.edges[i];
     return [point.map((v,j)=>v+(end[j]-v)*.38),end];
   });
+  tunnel.portalGuard=sections[eastPortal].edges.map(([x,y])=>[x+.52,y]);
   tunnel.ramps=tunnel.segments.slice(1).filter(segment=>!segment.covered);
   tunnel.eastView={position:junction.map((v,i)=>v+(v-eastMouth[i])*.035),target:eastMouth};
   const exit=tunnel.segments.at(-1).b;
-  tunnel.westApproach=[...exit.edges,[125,exit.edges[1][1]],[125,exit.edges[0][1]]];
+  tunnel.westApproach=[...exit.edges.map(([x,y])=>[x+1.25,y]),[125,exit.edges[1][1]],[125,exit.edges[0][1]]];
   landmarks.push({id:"west-underpass",name:"金寨路地下通道",short:"地下通道",kind:"road",
     x:525,y:685,h:.2,featured:true,aliases:"西门 下穿通道 科学大道 郭沫若路 勤奋路",
     description:"从郭沫若路与勤奋路的十字路口向西下坡，经金寨路下方通往科学大道。"});
@@ -658,6 +806,9 @@ const campus = (() => {
     return [{points:[[x,y],street.point],width:9.6,name,asphalt:true}];
   });
   const pavedRoads = [
+    {points:northParking.entrance,width:9,asphalt:true},
+    ...kindergarten.paths.map(points=>({points,width:2.8})),
+    {points:hallParking.entrance,width:6,asphalt:true},
     ...roads.filter(road=>!road.asphalt),...southPaths.map(points=>({points,width:3.5})),
     {points:bikeShelter.path,width:12.6,asphalt:true},...surroundingRoads,...approaches,
     ...roads.filter(road=>road.asphalt),{points:cherryWalk,width:11.5,asphalt:true}
@@ -700,16 +851,19 @@ const campus = (() => {
     bendPatches.push(shape);
   }
   roadSurfaces.asphalt.push(westApron,teachingForecourt,parking.outline,...parking.entrances);
-  roadSurfaces.asphalt.push(tunnel.apron,tunnel.westApproach);
+  roadSurfaces.asphalt.push(tunnel.apron,tunnel.roadJoin,tunnel.westApproach);
   roadSurfaces.asphalt.push(bikeShelter.apron);
+  roadSurfaces.asphalt.push(hallParking.outline,northParking.outline);
+  roadSurfaces.paving.push(...kindergarten.courts,hallFront.apron,juniorEntry.apron,officeEntry.apron);
   roadSurfaces.paving.push(scienceForecourt,busDepot.yard,fifthForecourt);
   const vergeSegments = [...pavedRoads,...sidewalks,{points:pavilionWalk,width:6}].flatMap(({points,width})=>
     points.slice(1).map((b,i)=>({a:points[i],b,half:width/2})));
-  const extraPaving=[...bendPatches,...tunnel.ramps.map(ramp=>ramp.shape),tunnel.apron,tunnel.westApproach,
-    scienceForecourt,busDepot.yard,bikeShelter.apron,fifthForecourt].map(shape=>({
+  const extraPaving=[...bendPatches,...tunnel.ramps.map(ramp=>ramp.shape),tunnel.apron,tunnel.roadJoin,tunnel.westApproach,
+    scienceForecourt,busDepot.yard,bikeShelter.apron,fifthForecourt,hallParking.outline,northParking.outline,hallFront.apron,juniorEntry.apron,officeEntry.apron,...kindergarten.courts].map(shape=>({
     shape,left:Math.min(...shape.map(p=>p[0])),right:Math.max(...shape.map(p=>p[0])),
     top:Math.min(...shape.map(p=>p[1])),bottom:Math.max(...shape.map(p=>p[1]))
   }));
+  squareScene.shrubs=squareScene.shrubs.filter(([x,y])=>!isPaved(x,y,1.75));
   const contextBuildings = (eastOSM.contextBuildings||[]).filter(({shape})=>
     !shape.some(([x,y])=>isPaved(x,y)) && !surroundingRoads.some(({points:[a,b]})=>
       contains(shape,...a)||contains(shape,...b))).map(({shape,kind,levels})=>({
@@ -749,6 +903,7 @@ const campus = (() => {
   const libraryEntryClearing=box(668.5,948,25.5,30);
   const noPlantAreas = [...waters,...plazas,...tunnel.ramps.map(ramp=>ramp.shape),squareScene.corridor,squareScene.patio,mottoClearing,westApron,teachingForecourt,libraryEntryClearing,
     ...parking.entrances,parking.outline,northStone,northBarrier,activityModel.apron,trackShape(0),
+    ...pullUpBars.map(({x,y})=>box(x-4,y-4,8,12)),
     ...sportCourts.map(({shape})=>shape),...ornamentObstacles.map(({shape})=>shape),...buildings.map(building => building.shape)];
   function isPaved(x,y,clearance=0) {
     const nearPaving=shape=>contains(shape,x,y)||shape.some((a,i)=>
@@ -798,6 +953,7 @@ const campus = (() => {
   }
   function canPlant({x,y,r}) {
     return hasGroundClearance(x,y,r*.30+.55)
+      && ![juniorEntry,officeEntry].some(({apron})=>apron.some((p,i)=>segmentDistance(x,y,p,apron[(i+1)%apron.length])<r*.72))
       && !oldLibrary.some((a,i)=>segmentDistance(x,y,a,oldLibrary[(i+1)%oldLibrary.length])<19+r)
       && !ornaments.some(ornament=>Math.hypot(x-ornament.x,y-ornament.y)<r+(ornament.id==="qian-linzhao"?7:3))
       && !roadSigns.some(sign=>Math.hypot(x-sign.x,y-sign.y)<r*.65+2.4);
@@ -828,6 +984,11 @@ const campus = (() => {
     return true;
   }
   plant({x:764.1,y:1040,r:4.3,evergreen:true});
+  plant(expertTree);
+  for(const [x,y,r] of [[529,792,4.1],[535,818,4.5],[538,830,4.1],[540,842,4.7],
+    [542,854,4.3],[544,866,4.6],[545,878,4.1],[546,890,4.6],[548,902,4.2]]) {
+    plant({x,y,r,evergreen:y===842||y===890});
+  }
   // Preserve a continuous walking surface along the actual centreline.
   for (let y=382;y<556;y+=12.4) {
     const i=cherryWalk.findIndex(([,py]) => py>=y);
@@ -982,6 +1143,39 @@ const campus = (() => {
     [791,365,6],[801,365,5.5],[792,378,5.4],[803,379,5.6],[802,391,5.4],[816,391,5.7],
     [829,391,5.1],[841,391,5.6],[853,391,5],[817,404,5.3],[829,404,5.2],[842,403,5.6],[853,402,5.1],
     [870,362,4.7],[876,369,4.4],[874,387,4.6],[875,398,4.6]]) plant({x,y,r,evergreen:(x+y)%4===0});
+  for(const [x,y,r] of [[779,365,5.4],[779,384,5.6],[789,392,5.1],[793,401,5.6],[806,402,4.8],
+    [809,383,4.6],[811,397,4.8],[822,397,4.9],[835,397,5.3],[849,397,5.1],[861,395,4.9],[864,405,4.5]]) {
+    plant({x,y,r,evergreen:(x+y)%4===0});
+  }
+  for(const [x,y,r] of [[518,585,4.6],[524,594,5.1],[522,605,5.3],
+    [494,561,4.7],[506,563,4.5],[517,558,4.9],[498,571,4.4]]) plant({x,y,r});
+  for(const [x,y,r] of [[519,618,3.7],[520,628,4],[519.5,638,3.8],[518.9,649,3.8],[518,659,4.1]]) {
+    plant({x,y,r,heightScale:1.85});
+  }
+  for(const [x,y,r] of [[552,584,5],[550,601,5.5],[551,619,5.8],[552,637,5.4],[553,655,4.8],
+    [746,579,5.2],[748,595,5.7],[749,612,5.5],[750,628,5.7],[752,646,5.3],
+    [678,235,5.7],[692,234,5.5],[706,234,5.8],[721,233,5.6],[735,233,5.2],
+    [658,253,5.1],[658,270,5.4],[662,284,5.4],[681,296,5.3],[698,297,5.4],
+    [716,295,5.4],[733,295,5.6],[750,294,5.1],[783,788,4],[784,805,4.2],[786,821,4.1]]) plant({x,y,r});
+  for(const [x,y,r] of [[398,808,5.1],[397,821,5.4],[397,836,5.6],[399,851,5.3],[400,870,4.8],
+    [413,890,4.6],[430,900,5.2],[449,906,4.6],[474,920,4.7],[496,918,4.9],[525,915,5.1],
+    [550,813,5],[553,834,5.4],[556,852,5.2],[558,875,4.8],[559,896,5]]) plant({x,y,r});
+  for(const [x,y,r] of [[389,800,4.4],[389,813,5.2],[389,828,5.4],[391,843,5.4],[390,858,5.5],
+    [394,880,5.1],[411,901,4.7],[432,914,4.8],[445,920,5],[466,927,4.9],
+    [484,929,5],[510,926,4.8],[535,922,5.1],[556,916,4.5],[568,884,4.5]]) plant({x,y,r});
+  for(const [x,y,r] of [[789,739,4.5],[802,741,4.9],[815,738,4.7],[825,741,4.6],[837,739,4.5],
+    [820,749,4.2],[833,746,4.6],[844,743,4.8],[852,741,4.2]]) plant({x,y,r});
+  for(const [x,y,r] of [[568,819,5.1],[575,831,5.7],[589,833,5.1],[584,842,4.8],[598,842,4.8],
+    [579,912,5],[591,912,4.8]]) {
+    plant({x,y,r,evergreen:(x+y)%5===0});
+  }
+  // Stagger the rows of trees between the museum and Residence Hall 221.
+  for(const [y,row] of [[1126,[709,724,741,757,785,801,815]],[1141,[714,730,746,758,783,796,812]],
+    [1155,[708,722,738,753,770,784,799,815]],[1168,[705,719,732,746,764,776,790,804,818]]]) {
+    row.forEach((x,i)=>plant({x,y,r:4.6+(i%3)*.35,evergreen:(x+y)%4===0}));
+  }
+  for(const [x,y,r] of [[795,658,4.6],[805,669,4.9],[820,651,4.5],[827,668,4.8],[847,650,4.4],[861,665,4.8],
+    [878,648,4.4],[887,664,4.5],[737,1027,4.5],[748,1049,4.8],[775,1052,4.8],[794,1025,4.6],[808,1045,4.4]]) plant({x,y,r});
   const memorialGrove={motto:[[-13,-12,4.6],[-12,12,5],[-4,-16,4.4],[0,14,5.2],[6,23,4.1],[12,-6,4.6],[12,7,5.4]],
     "qian-linzhao":[[-14,-13,4.4],[-13,13,5],[-3,-15,4.5],[0,13,4.7],[6,22,4],[12,-7,4.6],[12,7,4.9]]};
   for(const [id,sites] of Object.entries(memorialGrove)) {
@@ -1047,10 +1241,10 @@ const campus = (() => {
         bottom:bottom*scale[2],top:top*scale[2],...material
       }))};
     }
-    const pierColor=old?"#d5cfc0":"#b4ab8e";
-    const capColor=old?"#dcd4c3":"#c8baa0";
-    const span=old ? 25 : 23;
-    const thick=old ? 3.1 : 3.4;
+    const pierColor=old?"#cfb28a":"#b4ab8e";
+    const capColor=old?"#ddc39a":"#c8baa0";
+    const span=old ? 31 : 23;
+    const thick=old ? 3.6 : 3.4;
     const clear=old ? 7.1 : 7;
     const parts=[
       part(-span/2,-2.6,thick,5.2,0,clear,pierColor,capColor),
@@ -1058,13 +1252,17 @@ const campus = (() => {
       part(-span/2-.55,-3.2,span+1.1,6.4,clear,clear+2.7,capColor,"#ded7c8")
     ];
     if (old) {
-      parts.push(part(-span/2-.9,-3.35,span+1.8,6.7,clear+2.45,clear+3,capColor,"#e8e2d5"));
-      for(const side of [-1,1]) {
+      const columns=[-span/2,span/2-thick,-7.3,5.2];
+      for(const at of columns.slice(2)) parts.push(part(at,-2.6,2.1,5.2,0,clear,pierColor,capColor));
+      parts.push(part(-span/2-.8,-3.44,span+1.6,6.88,clear+2.18,clear+2.55,"#cbb18a","#e3ceaa"));
+      parts.push(part(-span/2-1,-3.56,span+2,7.12,clear+2.55,clear+2.84,capColor,"#e7d3b1"));
+      for(const [i,at] of columns.entries()) {
+        const width=i<2?thick:2.1;
         for(let level=1.2;level<clear;level+=1.32) {
-          const at=side<0 ? -span/2 : span/2-thick;
-          parts.push(part(at-.09,-2.69,thick+.18,5.38,level,level+.055,"#aaa396",pierColor));
+          parts.push(part(at-.035,-2.635,width+.07,5.27,level,level+.045,"#ab906c",pierColor));
         }
       }
+      place.h=clear+2.84;
     }
     return {place,parts};
   });
@@ -1095,6 +1293,40 @@ const campus = (() => {
     return [{at,shape:footprint.map(([u,v])=>at(u,v)),verticalScale:.7*unit/1.42}];
   });
   const lakeShrubs=[];
+  for(const [x,y] of [[399,808],[399,815],[398,826],[399,840],[399,855],[401,868],
+    [420,890],[427,894],[435,900],[445,905],[479,918],[486,917],[503,916],[513,915],[540,913],
+    [550,824],[553,846],[556,867],[558,887],[560,897]]) {
+    if(hasGroundClearance(x,y,1.3)&&!planting.some(tree=>Math.hypot(tree.x-x,tree.y-y)<2.4)) {
+      lakeShrubs.push({x,y,r:1.28,h:.96});
+    }
+  }
+  for(const [i,[x,y]] of parking.outline.entries()) {
+    const [nx,ny]=parking.outline[(i+1)%parking.outline.length];
+    const dx=nx-x,dy=ny-y,length=Math.hypot(dx,dy);
+    for(let distance=4;distance<length-3;distance+=4.3) {
+      const px=x+(dx*distance+dy*4)/length,py=y+(dy*distance-dx*4)/length;
+      if(hasGroundClearance(px,py,1.3)&&!planting.some(t=>Math.hypot(t.x-px,t.y-py)<2.35)
+        &&!lakeShrubs.some(s=>Math.hypot(s.x-px,s.y-py)<2.5)) lakeShrubs.push({x:px,y:py,r:1.21,h:.92});
+    }
+  }
+  for(const [x,y] of [[785,813],[787,819],[789,825],[797,826],[804,828],[811,826],[816,821]]) {
+    if(hasGroundClearance(x,y,1.4)&&!planting.some(tree=>Math.hypot(tree.x-x,tree.y-y)<2.2)) {
+      lakeShrubs.push({x,y,r:1.35,h:.95});
+    }
+  }
+  const gardenLane=roads.find(road=>road.id==="way/265583820");
+  for(let i=1;i<gardenLane.points.length;i++) {
+    const [x,y]=gardenLane.points[i-1],[nx,ny]=gardenLane.points[i];
+    const length=Math.hypot(nx-x,ny-y);
+    for(let along=4;along<length-2;along+=3.3) for(const side of [-1,1]) {
+      const offset=side*(gardenLane.width/2+2.2);
+      const px=x+((nx-x)*along-(ny-y)*offset)/length;
+      const py=y+((ny-y)*along+(nx-x)*offset)/length;
+      if(hasGroundClearance(px,py,1.25)&&!planting.some(t=>Math.hypot(t.x-px,t.y-py)<2.1)) {
+        lakeShrubs.push({x:px,y:py,r:1.23,h:.92});
+      }
+    }
+  }
   for(let y=413;y<=535;y+=4.3) {
     const [a,b]=y<479.58?[[764.73,411.82],[767.77,479.58]]:[[767.77,479.58],[758.22,550.48]];
     const center=a[0]+(b[0]-a[0])*(y-a[1])/(b[1]-a[1]);
@@ -1114,6 +1346,10 @@ const campus = (() => {
   }
   const memorialShrubs=[];
   const historyShrubs=[];
+  for(const [x,y] of [[738,1010],[744,1013],[752,1023],[744,1054],[750,1057],[779,1025],[784,1028],
+    [786,1049],[791,1050],[801,1068],[805,1069]]) {
+    if(hasGroundClearance(x,y,1.4)&&!planting.some(tree=>Math.hypot(tree.x-x,tree.y-y)<3)) historyShrubs.push({x,y,r:1.35,h:1.07});
+  }
   const historyPaths=roads.filter(({id})=>/^way\/28586041[3-8]$/.test(id));
   for(const {points,width} of historyPaths) {
     for(let i=1;i<points.length;i++) {
@@ -1143,21 +1379,32 @@ const campus = (() => {
   }
   tunnel.shrubs=tunnelPlanting.filter(([x,y])=>canFurnish(x,y,1.4))
     .map(([x,y],i)=>({x,y,r:1.05+(i%3)*.15,h:.62+(i%3)*.18}));
+  // Remove generated trees from the paved courtyard after planting so no retry fills the gap.
+  const expertCourtyardTrees=box(720,383,43,41);
+  const courtyardTreeIndex=planting.findIndex(tree=>tree.whiteBase);
+  for(let i=planting.length-1;i>=0;i--) {
+    const {x,y}=planting[i];
+    if(i!==courtyardTreeIndex && contains(expertCourtyardTrees,x,y)) planting.splice(i,1);
+  }
   const obstacles=[
+    ...pullUpBars.flatMap(({x,y,height})=>[y,y+4].map(postY=>({shape:box(x-.15,postY-.15,.3,.3),top:height}))),
+    trackStage,...trackStage.walls.map(shape=>({shape,top:trackStage.roofHeight})),
+    kindergarten.sign,
+    ...kindergarten.playEquipment,
     ...bikeShelter.posts,...bikeShelter.bikes.map(({x,y})=>({shape:box(x-.42,y-1.32,.84,2.64),top:1.53})),
     ...busDepot.buses,...busDepot.supports,busDepot.backWall,
     ...contextBuildings,
     ...gates.flatMap(({parts})=>parts.filter(part=>part.bottom===0)),
-    ...tunnel.apronFences.map(([[x,y],[nx,ny]])=>{
+    ...[...tunnel.apronFences,tunnel.portalGuard].map(([[x,y],[nx,ny]])=>{
       const length=Math.hypot(nx-x,ny-y), dx=(ny-y)*.09/length,dy=(x-nx)*.09/length;
       return {shape:poly(x+dx,y+dy,nx+dx,ny+dy,nx-dx,ny-dy,x-dx,y-dy),top:tunnel.fenceTop};
     }),
     ...benches.map(({shape,verticalScale})=>({shape,top:2.41*verticalScale})),
     {shape:squareScene.planter,top:1.08}, {shape:squareScene.pool,top:.35},
-    ...parking.cars.map(([x,y])=>({shape:box(x-1.3,y-3.05,2.6,6.1),top:2.15})),
+    ...[...parking.cars,...expertCars].map(([x,y])=>({shape:box(x-1.3,y-3.05,2.6,6.1),top:2.15})),
     ...squareScene.terraceTables.map(([x,y])=>({shape:box(x-.74,y-.74,1.48,1.48),top:1.12})),
     ...ornamentObstacles,
-    ...activityModel.columns,activityModel.core,{shape:northStone,top:3.45},
+    ...activityModel.columns,activityModel.core,{shape:northStone,top:northStoneTop},
     ...roadSigns.map(({x,y,blades})=>({shape:box(x-.15,y-.15,.30,.30),top:3+blades.length*1.18}))
   ];
   function trackShape(inset) {
@@ -1174,11 +1421,13 @@ const campus = (() => {
     const windows = [];
     for (let row=0;row<floors;row++) for (let col=0;col<columns;col++) {
       const t = (col+.5)/columns, z = (row+.5)*height/floors;
-      windows.push([t-halfWidth,t+halfWidth,z-halfHeight,z+halfHeight]);
+      const top=style.topTrim?Math.min(z+halfHeight,height-style.topTrim-.3):z+halfHeight;
+      windows.push([t-halfWidth,t+halfWidth,z-halfHeight,top]);
     }
     return windows;
   }
-  bikeShelter.shrubs=[359.8,385.2].flatMap(y=>Array.from({length:15},(_,i)=>({x:814+i*2.6,y,r:1.18,h:1.02})))
+  bikeShelter.shrubs=[...[359.8,386.3].flatMap(y=>Array.from({length:15},(_,i)=>({x:814+i*2.6,y,r:1.18,h:1.02}))),
+    ...Array.from({length:10},(_,i)=>({x:809.4,y:364+i*2.8,r:1.24,h:.86+(i%3)*.11}))]
     .filter(({x,y,r})=>hasGroundClearance(x,y,r)&&!planting.some(tree=>Math.hypot(x-tree.x,y-tree.y)<r+tree.r*.18));
-  return {reference,facadeSources,floorPlans,vrUrl,vrPlaces,outline,roads,surroundingRoads,approaches,roadSurfaces,roadColors,roadSigns,isPaved,nearestStreet,canRoam,segmentDistance,lawns,plazas,waters,buildings,contextBuildings,trees:planting,landmarks,ornaments,pavilion,box,poly,contains,cherryWalk,pavilionWalk,square,squarePoint,squareScene,parking,gates,benches,memorialShrubs,historyShrubs,lakeShrubs,oxShrubs,busDepot,bikeShelter,libraryFront,sportCourts,obstacles,trackShape,wallWindows,activityModel,researchLinks,northStone,northBarrier,tunnel,tunnelAt};
+  return {reference,facadeSources,floorPlans,vrUrl,vrPlaces,outline,roads,surroundingRoads,approaches,roadSurfaces,roadColors,roadSigns,isPaved,nearestStreet,canRoam,segmentDistance,lawns,plazas,waters,buildings,contextBuildings,trees:planting,landmarks,ornaments,pavilion,box,poly,contains,cherryWalk,pavilionWalk,square,squarePoint,squareScene,parking,expertCars,gates,benches,memorialShrubs,historyShrubs,lakeShrubs,oxShrubs,busDepot,bikeShelter,libraryFront,sportCourts,obstacles,trackShape,wallWindows,activityModel,researchLinks,northStone,northStoneTop,northBarrier,northParking,kindergarten,hallFront,juniorEntry,officeEntry,trackStage,pullUpBars,hallParking,tunnel,tunnelAt};
 })();

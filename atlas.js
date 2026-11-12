@@ -118,6 +118,7 @@ function draw() {
   ctx.save();
   ctx.clip(board);
   for (const lawn of campus.lawns) ground(lawn,"#b9d4a5");
+  ground(campus.kindergarten.yard,"#acc797");
   ground(campus.tunnel.portalLawn,"#a6c391");
   ground(campus.parking.lawn,"#a9c991");
   for (const plaza of campus.plazas) ground(plaza,"#e4eadc");
@@ -152,6 +153,8 @@ function draw() {
   for(const {shape} of campus.libraryFront.steps) ground(shape,"#b0b1a5");
   for(const {shape} of campus.busDepot.buses) ground(shape,"#e0c35f");
   ground(campus.bikeShelter.shape,"#929d97");
+  campus.kindergarten.courts.forEach((shape,i)=>ground(shape,["#a9c7c5","#c6bca0","#a3b6c8"][i]));
+  for(const {shape} of campus.hallFront.steps) ground(shape,"#c9c3b5");
   for(const {x,y,r} of campus.bikeShelter.shrubs) ground(ring(x,y,r,r*.84),"#779653");
   for(const [x,y] of campus.squareScene.terraceTables) ground(ring(x,y,2.03,2.03),"#eee6d7");
   for (const water of campus.waters) {
@@ -222,8 +225,10 @@ function draw() {
       const style = building.style || {};
       const base=colors[building.type];
       const palette = style.wall ? {walls:[style.base||style.wall,style.wall,style.wall],roof:style.roof||base.roof} : base;
-      const bottom=building===campus.busDepot.shelter?4.1:building.id==="activity"?campus.activityModel.upper.bottom:0;
-      const paths = prism(building.shape,bottom,building.baseHeight??building.height,active ? {...palette,roof:"#e1edcc"} : palette,active ? "#387c73" : null,style);
+      const bottom=building===campus.busDepot.shelter?campus.busDepot.ceiling:building.id==="activity"?campus.activityModel.upper.bottom:0;
+      const paths=building.firstFloor?prism(building.shape,0,building.firstFloor,palette):[];
+      paths.push(...prism(building.shape,building.firstFloor??bottom,building.baseHeight??building.height,
+        active ? {...palette,roof:"#e1edcc"} : palette,active ? "#387c73" : null,style));
       for(const {shape,top,style} of building.masses||[]) paths.push(...prism(shape,building.baseHeight,top,
         {walls:[style.base||style.wall,style.wall,style.trim||style.wall],roof:active?"#e1edcc":style.roof},
         active?"#387c73":null,style.floors?style:null));
@@ -396,7 +401,7 @@ const tips = {
   pavilion:"可从东池北岸经曲折的回廊靠近亭子。",
   classroom:"漫游定位在北侧门廊外，便于观察红砖立面和门前铺装。",
   square:"可沿中轴查看郭沫若先生像，再向南去老图书馆。",
-  "old-library":"旧馆与东区新馆相邻。搜索「207」可以直接定位到老图书馆。",
+  "old-library":"办公楼位于东区图书馆北侧，也可搜索「207」或「老图书馆」定位。",
   library:"漫游定位在南侧台阶外，朝向玻璃门厅。",
   canteen:"从图书馆沿校内道路向东可到食堂一带。",
   track:"运动场靠近金寨路。可从东侧校内道路观察跑道和看台。",
@@ -466,7 +471,8 @@ function selectPlace(place) {
     return;
   }
   walkDestination = place;
-  flyTo({x:place.x,y:place.y,zoom:Math.max(1.62,camera.zoom)});
+  const [, , x, y] = place.id==="osm-1135310357" ? campus.kindergarten.signView : [0,0,place.x,place.y];
+  flyTo({x,y,zoom:clamp(camera.zoom,1.62,2.35)});
 }
 
 function clearSelection() {

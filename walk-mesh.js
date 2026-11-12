@@ -61,21 +61,22 @@ function makeWalkMesh() {
   function inscription(a,b,level,color,spaced=false) {
     const label=document.createElement("canvas");
     label.width=spaced?288:190;
-    label.height=spaced?38:23;
+    label.height=spaced?36:23;
     const ink=label.getContext("2d");
     ink.textAlign="center";
     ink.textBaseline="middle";
     const name="中国科学技术大学";
     if (spaced) {
       ink.font='bold 31px KaiTi, STKaiti, "Microsoft YaHei", serif';
-      [...name].forEach((character,i)=>ink.fillText(character,36*(i+.5),19));
+      [...name].forEach((character,i)=>ink.fillText(character,36*(i+.5),18));
     } else {
       ink.font='bold 19px "Microsoft YaHei", sans-serif';
       ink.fillText(name,95,11.5);
     }
     letterMesh(label,ink,(col,row)=>{
-      const t=spaced?col/label.width:.10+.80*col/label.width;
-      return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,level-row*(spaced?.045:.067)];
+      const t=spaced==="square" ? .5+(col-label.width/2)*.046/Math.hypot(b[0]-a[0],b[1]-a[1]) :
+        spaced?col/label.width:.10+.80*col/label.width;
+      return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,level-row*(spaced==="square"?.046:spaced?.045:.067)];
     },color);
   }
   function letterMesh(label,ink,at,color,material=0) {
@@ -120,15 +121,16 @@ function makeWalkMesh() {
         const level=height*row/(style.floors||5);
         panel(.025,.975,level-.16,level+.19,trim,.155);
       }
-      panel(0,1,0,style.brick?2.4:1.35,style.base||"#aba080");
-      panel(0,1,height-1.3,height-.15,trim,.14);
+      if(!style.brickToGround) panel(0,1,0,style.facadeBaseHeight??(style.brick?2.4:1.35),style.base||"#aba080");
+      if(style.centerAccent&&length>45) panel(.455,.545,0,height-.65,style.centerAccent,.048);
+      panel(0,1,height-(style.topTrim??1.3),height-.15,trim,.14);
       if(style.balconies) for(let floor=1;floor<style.floors;floor++) {
         const level=height*floor/style.floors;
         panel(.005,.995,level-.12,level+.12,"#bdb8a4",.09);
       }
       if (style.brick) {
-        panel(0,1,height-2.05,height-1.25,"#bfb1a0",.1);
-        for (const t of [.035,.965]) {
+        if (!style.topTrim) panel(0,1,height-2.05,height-1.25,"#bfb1a0",.1);
+        for (const t of style.topTrim?[]:[.035,.965]) {
           const width=Math.min(.025,.95/length);
           panel(t-width,t+width,2.35,height-1.25,"#bf745a",.105);
         }
@@ -137,16 +139,72 @@ function makeWalkMesh() {
         panel(0,1,1.4,3.3,trim,.13);
         panel(0,1,height*.47,height*.56,trim,.13);
       }
-      const door = entry?.edge === i ? entry.center : null;
+      const faceEntry=Array.isArray(entry)?entry.find(candidate=>candidate.edge===i):entry?.edge===i?entry:null;
+      const door = faceEntry?.center??null;
       const doorWidth = 3.8/length;
       const grand = door!==null && style.grandEntry;
-      const teaching = door!==null && style.teachingEntry;
+      const teaching = door!==null && style.teachingEntry && !faceEntry.secondary;
+      if(door!==null && style.officeEntry) {
+        panel(.055,.945,.48,2.97,glass,.16,meshMaterial.glass);
+        panel(.39,.61,.025,2.97,"#263b40",.22,meshMaterial.glass);
+        for(const t of [.055,.19,.32,.39,.50,.61,.68,.81,.945]) panel(t-.003,t+.003,t>=.39&&t<=.61?.025:.48,2.99,trim,.245);
+        const slab=[point(.018,0,.03),point(.982,0,.03),point(.982,0,3.25),point(.018,0,3.25)].map(p=>p.slice(0,2));
+        prism(slab,z0+3.03,z0+3.43,"#92958d",roof);
+      }
+      if(door!==null && style.juniorEntry) {
+        const front=t=>.31+(t-.15)*.78;
+        const frontPanel=(left,right,...args)=>panel(front(left),front(right),...args);
+        const solid=(left,right,bottom,top,depth,wall,roof)=> {
+          const footprint=[point(front(left),0,.04),point(front(right),0,.04),point(front(right),0,depth),point(front(left),0,depth)].map(p=>p.slice(0,2));
+          prism(footprint,z0+bottom,z0+top,wall,roof);
+        };
+        panel(.015,.985,.1,height-.12,"#a64d40",.075,meshMaterial.brick);
+        frontPanel(.165,.835,2.5,11.95,"#394646",.13);
+        frontPanel(.27,.73,2.54,5.2,"#4a6162",.19,meshMaterial.glass);
+        for(const t of [.27,.41,.5,.59,.73]) frontPanel(t-.008,t+.008,2.55,5.17,"#a9b1a7",.25);
+        for(const [left,right] of [[.19,.33],[.35,.49],[.51,.65],[.67,.81]]) {
+          frontPanel(left,right,6.22,11.83,"#415b66",.18,meshMaterial.glass);
+          frontPanel(left,right,10.4,10.45,"#859290",.2);
+        }
+        for(const t of [.17,.34,.50,.66,.83]) solid(t-.014,t+.014,6.03,12.05,.60,"#a6b0a7","#b3bdb3");
+        solid(.15,.85,11.95,height-.18,1.08,"#9faea1","#b1bcb1");
+        for(let z=12.95;z<height-.25;z+=1.15) frontPanel(.155,.845,z,z+.023,"#7b8a80",1.085);
+        for(const t of [.29,.43,.57,.71]) frontPanel(t,t+.0016,12.03,height-.2,"#7b8a80",1.086);
+        solid(.15,.85,5.2,6.16,.91,"#bbc5bc","#cdd5ca");
+        const label=document.createElement("canvas");
+        label.width=252;label.height=40;
+        const ink=label.getContext("2d");
+        ink.font='bold 32px KaiTi, "Microsoft YaHei", serif';
+        ink.textAlign="left";ink.textBaseline="middle";ink.fillText("少年班",4,20);
+        const textPoint=(col,row)=>point(front(.785-col*.00155),6.09-row*.021,.93);
+        letterMesh(label,ink,textPoint,"#873c36");
+        ink.clearRect(0,0,label.width,label.height);
+        ink.font='bold 14px Arial, sans-serif';
+        ink.fillText("School of",110,12);
+        ink.fillText("the Gifted Young",110,27);
+        letterMesh(label,ink,textPoint,"#344d65");
+        return;
+      }
+      if(door!==null && style.hallEntry) {
+        panel(0,1,.05,1.25,"#a96e56",.08);
+        panel(.16,.84,1.2,10.6,"#6d9295",.12,meshMaterial.glass);
+        panel(.16,.84,6.6,7.2,"#c5b6a5",.21);
+        for(const t of [.16,.32,.68,.84]) panel(t-.008,t+.008,1.2,10.6,"#bca38d",.25);
+        for(const t of [.24,.42,.50,.58,.76]) panel(t-.0016,t+.0016,1.25,6.6,"#cbd0c3",.22);
+        for(let t=.18;t<.83;t+=.023) panel(t,t+.001,7.2,10.54,"#a1b5b2",.17);
+        panel(.165,.835,2.3,2.37,"#5c8096",.23);
+        for(let level=1.3;level<height-.65;level+=1.04) {
+          for(const [l,r] of [[0,.15],[.85,1]]) panel(l,r,level,level+.022,"#b5b1a5",.095);
+        }
+        return;
+      }
       const span = grand ? campus.libraryFront.span : Math.min(.24,25/length);
-      for (const [l,r,b,t] of campus.wallWindows(length,height,style)) {
+      for (const [l,r,b,t] of campus.wallWindows(length,height-(style.roofHeadroom??0),style)) {
+        if(door!==null&&style.officeEntry&&b<3.43) continue;
         if (grand && l<door+span+.04 && r>door-span-.04) continue;
         if (teaching && b<6 && l<door+span && r>door-span) continue;
         if (door!==null && b<5 && l<door+doorWidth && r>door-doorWidth) continue;
-        panel(l-.35/length,r+.35/length,b-.32,t+.24,trim,.065);
+        panel(Math.max(.025,l-.35/length),Math.min(.975,r+.35/length),b-.32,t+.24,trim,.065);
         panel(l,r,b,t,glass,.085,meshMaterial.glass);
         panel(l,r,b,b+.45,"#354b50",.11);
         const middle=(l+r)/2;
@@ -212,7 +270,22 @@ function makeWalkMesh() {
         }
         for(const {shape,top} of campus.libraryFront.steps) prism(shape,0,top,"#9fa197","#b0b1a5");
         panel(left,right,height*.78,height*.88,"#babfb7",.37);
-      } else if (door!==null) {
+      } else if (door!==null && style.expertEntry) {
+        const half=Math.min(5.9/length,door-.035,.965-door);
+        const glassHalf=half*.68;
+        const porch=(left,right,bottom,top,back,front,wall,cap)=> {
+          const footprint=[point(left,0,back),point(right,0,back),point(right,0,front),point(left,0,front)].map(p=>p.slice(0,2));
+          prism(footprint,z0+bottom,z0+top,wall,cap);
+        };
+        panel(door-glassHalf,door+glassHalf,.12,3.85,"#343737",.2,meshMaterial.glass);
+        panel(door-glassHalf,door+glassHalf,3.85,4.32,"#302c29",.22);
+        for(const t of [door-glassHalf,door,door+glassHalf]) panel(t-.07/length,t+.07/length,.12,3.85,"#a69e8c",.24);
+        for(const t of [door-half*.77,door+half*.77]) {
+          porch(t-.38/length,t+.38/length,0,4.6,1.7,2.46,"#c3b8a3","#d6ccbb");
+        }
+        porch(door-half,door+half,4.5,5.12,0,2.82,"#c5c1b6","#dedbd0");
+        porch(door-half-.018,door+half+.018,5.08,5.31,0,3.02,"#ddd9cf","#d3d0c5");
+      } else if (door!==null && !style.officeEntry) {
         const left=door-doorWidth, right=door+doorWidth, seam=.11/length;
         panel(left-seam*4,right+seam*4,0,5.45,"#efe0c4",.12);
         panel(left,right,.2,4.9,"#4d6c67",.18);
@@ -298,8 +371,8 @@ function makeWalkMesh() {
       const base=circle(x,y,1.7,1.5,10), top=circle(x,y,1.3,1.15,10);
       for(let i=0;i<10;i++) {
         const j=(i+1)%10;
-        quad([...base[i],.35],[...base[j],.35],[...top[j],1.55],[...top[i],1.55],"#68894c",.80+i*.033);
-        triangle([...top[i],1.55],[...top[j],1.55],[x,y,2.04],"#779953");
+        quad([...base[i],.04],[...base[j],.04],[...top[j],.66],[...top[i],.66],"#68894c",.80+i*.033);
+        triangle([...top[i],.66],[...top[j],.66],[x,y,.96],"#779953");
       }
     }
     for(const [i,[x,y]] of flagpoles.entries()) {
@@ -323,11 +396,11 @@ function makeWalkMesh() {
 
   function parkingDetails() {
     const paint="#e3e0d4";
-    for(const {x,y,count} of campus.parking.rows) {
+    for(const {x,y,count} of [...campus.parking.rows,...campus.hallParking.rows,...campus.northParking.rows]) {
       for(let i=0;i<=count;i++) strip([[x+5*i,y],[x+5*i,y+7.7]],.155,.083,paint,false);
       strip([[x,y],[x+5*count,y]],.155,.083,paint,false);
     }
-    for (const [x,y,color] of campus.parking.cars) {
+    for (const [x,y,color] of [...campus.parking.cars,...campus.expertCars]) {
       box(x-1.22,y-2.97,2.44,5.94,.43,1.21,color);
       const glass="#66777c";
       const a=[x-1.07,y-1.74,1.21], b=[x+1.07,y-1.74,1.21];
@@ -346,8 +419,57 @@ function makeWalkMesh() {
     }
   }
 
+  function kindergartenDetails() {
+    const {yard,courts,eastFence,playEquipment,sign}=campus.kindergarten;
+    prism(sign.shape,0,sign.top,"#d6ccb2","#ebe0c6");
+    const board=document.createElement("canvas");
+    board.width=175;
+    board.height=30;
+    const ink=board.getContext("2d");
+    ink.font='bold 23px "Microsoft YaHei", sans-serif';
+    ink.textAlign="center";
+    ink.textBaseline="middle";
+    ink.fillText("中科大幼儿园",87.5,15);
+    for(const side of [-1,1]) {
+      const x=side===1?1167.17:1165.98;
+      quad([x,667.36,.8],[x,677.14,.8],[x,677.14,2.68],[x,667.36,2.68],"#40685b");
+      letterMesh(board,ink,(col,row)=>[x+side*.023,672.25-side*(col-87.5)*.053,2.5-row*.052],"#f2ead1");
+    }
+    surface(yard,.022,"#acc797",4);
+    courts.forEach((shape,i)=>surface(shape,.065,["#a9c7c5","#c6bca0","#a3b6c8"][i]));
+    const turns=[[1107,646,6.7,"#be765c"],[1121,647,6.4,"#d9ab60"],[1115,650,4.3,"#6b95a6"]];
+    for(const [x,y,r,color] of turns) {
+      const curve=Array.from({length:29},(_,i)=>{
+        const a=(i/28*1.65-.32)*Math.PI;
+        return [x+Math.cos(a)*r,y+Math.sin(a)*r*.67];
+      });
+      strip(curve,1.56,.082,color);
+    }
+    prism(circle(1097,650,2.25,1.65,16),.07,.27,"#a68159","#d2ba8d");
+    for(const {shape,top} of playEquipment) {
+      const [[x,y],[right],,[,front]]=shape;
+      const platform=top-1;
+      box(x,y,right-x-3,front-y,platform-.18,platform,"#b37d59","#d9ae68");
+      for(const px of [x+.25,right-3.3]) for(const py of [y+.3,front-.38]) {
+        box(px,py,.18,.18,.06,top-.19,"#608b86");
+      }
+      box(x-.1,y-.1,right-x-2.8,front-y+.2,top-.19,top,"#a65e52","#c87960");
+      quad([right-3.1,y+.8,platform],[right-3.1,y+2.25,platform],[right,y+2.25,.23],[right,y+.8,.23],"#d69c54");
+    }
+    const westLoop=campus.box(1051,691,20,16);
+    strip([...westLoop,westLoop[0]],.9,.08,"#e3d3ae",true);
+    for(const [a,b] of [[eastFence[0],eastFence[1]],[eastFence[2],eastFence[3]]]) {
+      for(const z of [.45,1.5]) strip([a,b],.12,z,"#648274",false);
+      const count=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1])/2.25);
+      for(let i=0;i<=count;i++) {
+        const x=a[0]+(b[0]-a[0])*i/count,y=a[1]+(b[1]-a[1])*i/count;
+        box(x-.055,y-.055,.11,.11,.055,1.65,"#648274");
+      }
+    }
+  }
+
   function busDepotDetails() {
-    const {yard,buses,shelter,supports,backWall}=campus.busDepot;
+    const {yard,buses,shelter,supports,backWall,signCenter,ceiling}=campus.busDepot;
     surface(yard,.06,"#c5c5ba",1);
     for(const x of [488.8,494.8,500.8,506.8]) strip([[x,599],[x,618]],.16,.085,"#f1edda",false);
     strip([[488.8,618],[506.8,618]],.16,.085,"#f1edda",false);
@@ -368,19 +490,20 @@ function makeWalkMesh() {
       box(x-.84,y-8.07,1.68,.06,3.74,3.98,"#a96c34");
     }
     prism(shelter.shape,0,.15,"#a3a69b","#c1c2b6");
-    prism(shelter.shape,4.1,shelter.height,"#505a56","#6e7972");
+    prism(shelter.shape,ceiling,shelter.height,"#505a56","#6e7972");
     prism(backWall.shape,.15,backWall.top,"#6d7166","#83887b");
     for(const {shape,top} of supports) prism(shape,.15,top,"#929990","#aeb1a6");
-    box(520.6,635.3,1.03,9.8,.78,1.1,"#8c7656","#b29971");
-    for(const y of [636,643.9]) box(520.9,y,.46,.35,.15,.79,"#666d64");
+      box(523,635.3,1.03,9.8,.78,1.1,"#8c7656","#b29971");
+      for(const y of [636,643.9]) box(523.3,y,.46,.35,.15,.79,"#666d64");
     const sign=document.createElement("canvas");
     sign.width=120; sign.height=24;
     const ink=sign.getContext("2d");
     ink.font='bold 20px "Microsoft YaHei", sans-serif';
     ink.textAlign="center"; ink.textBaseline="middle";
     ink.fillText("校车站台",60,12);
-    box(530.02,647.6,.24,6,3.14,3.92,"#386551");
-    letterMesh(sign,ink,(col,row)=>[530.27,653.36-col*.046,3.85-row*.026],"#f2f2dc");
+    const [x,y,z]=signCenter;
+    box(x-.25,y-2.35,.24,4.7,z-.49,z+.51,"#386551");
+    letterMesh(sign,ink,(col,row)=>[x,y+(60-col)*.035,z+.41-row*.032],"#f2f2dc");
   }
 
   function drawBikeShelter() {
@@ -522,14 +645,16 @@ function makeWalkMesh() {
   }
 
   function northEntryDetails() {
-    const [[x,y],[right]]=campus.northStone;
+    const [[x,y],[right],[,south]]=campus.northStone;
     const width=right-x;
-    const base=campus.poly(x,y+.9,x+1.35,y,x+width-.9,y,x+width,y+1.05,x+width-.35,y+3.42,x+2,y+4.55,x+.4,y+3.02);
-    const rim=base.map(([px,py],i)=>[px+(x+width/2-px)*.13,py+(y+2-py)*.12,[2.18,3.18,3.06,2.18,2.47,3.42,2.82][i]]);
+    const thickness=(south-y)/4.6;
+    const base=campus.poly(x,y+.9,x+1.35,y,x+width-.9,y,x+width,y+1.05,x+width-.35,y+3.42,x+2,y+4.55,x+.4,y+3.02)
+      .map(([px,py])=>[px,y+(py-y)*thickness]);
+    const rim=base.map(([px,py],i)=>[px+(x+width/2-px)*.13,py+(y+2*thickness-py)*.12,[2.18,3.18,3.06,2.18,2.47,3.42,2.82][i]*2]);
     base.forEach(([px,py],i)=>{
       const j=(i+1)%base.length;
       quad([px,py,.06],[...base[j],.06],rim[j],rim[i],"#a49a84",.86+(i%3)*.09);
-      triangle(rim[i],rim[j],[x+width*.52,y+2,3.56],"#b4a88e",.88+(i%3)*.055);
+      triangle(rim[i],rim[j],[x+width*.52,y+2*thickness,campus.northStoneTop],"#b4a88e",.88+(i%3)*.055);
     });
     const label=document.createElement("canvas");
     label.width=252; label.height=42;
@@ -539,7 +664,7 @@ function makeWalkMesh() {
     [..."中国科学技术大学"].forEach((glyph,i)=>ink.fillText(glyph,16+i*31.4,21));
     letterMesh(label,ink,(col,row)=>{
       const z=2.23-row*.033;
-      return [x+width-1.94-col/label.width*(width-4.1),y+z*.032-.065,z];
+      return [x+width-1.94-col/label.width*(width-4.1),y+z*.032*thickness-.065,z*2];
     },"#a13732");
     const [[bx,by]]=campus.northBarrier;
     for(let i=0;i<13;i++) {
@@ -609,7 +734,7 @@ function makeWalkMesh() {
     ink.font='bold 36px KaiTi, "Microsoft YaHei", serif';
     ink.textAlign="center"; ink.textBaseline="middle";
     [..."科大美食广场"].forEach((glyph,i)=>ink.fillText(glyph,26+i*46,22));
-    letterMesh(label,ink,(col,row)=>[face-.075,1023+(col-141)*.073,8.39-row*.041],"#8f312c");
+    letterMesh(label,ink,(col,row)=>[face-.075,1023+(col-141)*.051,9.38-row*.041],"#8f312c");
   }
 
   function westGateDetails({place:{x,y},parts,scale}) {
@@ -712,9 +837,11 @@ function makeWalkMesh() {
   for (const plaza of campus.plazas) surface(plaza,.03,"#d2d6bb",1);
   for (const shape of campus.roadSurfaces.sidewalk) surface(shape,.04,campus.roadColors.sidewalk,1);
   for (const shape of campus.roadSurfaces.paving) surface(shape,.055,campus.roadColors.paving,meshMaterial.pavedRoad);
+  const expertCourtyard=campus.poly(720,383.5,759,382,763,391,761,413,753,424,721,424,720.9,417,720,394.3);
+  surface(expertCourtyard,.066,campus.roadColors.paving,meshMaterial.pavedRoad);
   for (const shape of campus.roadSurfaces.asphalt) surface(shape,.075,campus.roadColors.asphalt,meshMaterial.asphaltRoad);
   const {segments,ceiling,fenceTop}=campus.tunnel;
-  for(const [[x,y],[nx,ny]] of campus.tunnel.apronFences) {
+  for(const [[x,y],[nx,ny]] of [...campus.tunnel.apronFences,campus.tunnel.portalGuard]) {
     strip([[x,y],[nx,ny]],.15,fenceTop,"#39454a",false);
     strip([[x,y],[nx,ny]],.12,.84,"#535e60",false);
     const count=Math.ceil(Math.hypot(nx-x,ny-y)/1.55);
@@ -724,7 +851,7 @@ function makeWalkMesh() {
     }
   }
   for(const {a,b,covered,shape} of segments.slice(1)) {
-    const at=(station,t,z=station.z)=>{
+    const at=(station,t,z=station.z+(station===segments[0].b||station===segments.at(-1).b ? .075 : 0))=>{
       const [l,r]=station.edges;
       return [l[0]+(r[0]-l[0])*t,l[1]+(r[1]-l[1])*t,z];
     };
@@ -769,9 +896,9 @@ function makeWalkMesh() {
       const portal=a.z<b.z?a:b;
       const [l,r]=portal.edges;
       const head=[l,r,r.map((v,i)=>v+(i===0?.52:0)),l.map((v,i)=>v+(i===0?.52:0))];
-      prism(head,ceiling,1.05,"#9b9c91","#c2beb0");
+      prism(head,b.portal?-1.8:ceiling,b.portal?0:1.05,"#9b9c91","#c2beb0");
       if(b.portal) {
-        const face=(t,z,offset)=>[l[0]+(r[0]-l[0])*t+offset,l[1]+(r[1]-l[1])*t,z];
+        const face=(t,z,offset)=>[l[0]+(r[0]-l[0])*t+offset,l[1]+(r[1]-l[1])*t,(z-.66)*1.5];
         quad(face(.15,-.54,.55),face(.85,-.54,.55),face(.85,.66,.55),face(.15,.66,.55),"#2e3433",1,11);
         quad(face(.17,-.43,.565),face(.83,-.43,.565),face(.83,.56,.565),face(.17,.56,.565),"#171c1b",1,11);
         const label=document.createElement("canvas");
@@ -787,6 +914,14 @@ function makeWalkMesh() {
     }
   }
   parkingDetails();
+  for (const {x,y,height} of campus.pullUpBars) {
+    for (const postY of [y,y+4]) {
+      box(x-.33,postY-.33,.66,.66,0,.17,"#b0b3a4");
+      box(x-.15,postY-.15,.30,.30,.17,height,"#41636a");
+    }
+    box(x-.06,y,.12,4,height-.18,height-.06,"#edc229");
+  }
+  kindergartenDetails();
   busDepotDetails();
   drawBikeShelter();
   drawSportCourts();
@@ -914,8 +1049,13 @@ function makeWalkMesh() {
       northEntryDetails();
     } else if (place.id==="old-north") {
       const beam=parts[2], [a,b,c,d]=beam.shape, level=beam.top-.47;
-      inscription([d[0],d[1]+.085],[c[0],c[1]+.085],level,"#813d36");
-      inscription([b[0],b[1]-.085],[a[0],a[1]-.085],level,"#813d36");
+        inscription([d[0],d[1]+.085],[c[0],c[1]+.085],level,"#813d36","square");
+        inscription([b[0],b[1]-.085],[a[0],a[1]-.085],level,"#813d36","square");
+      for(const dx of [-11.65,11.65]) {
+        const x=place.x+dx;
+        for(const z of [.24,1.85,3.7]) box(x-.055,place.y-2.58,.11,4.7,z,z+.08,"#4b5044");
+        for(let i=0;i<12;i++) box(x-.045,place.y-2.55+i*.42,.09,.085,.21,3.78,"#4b5044");
+      }
     } else if (place.id==="west") {
       westGateDetails(gate);
     }
@@ -994,17 +1134,32 @@ function makeWalkMesh() {
         if(tread.length>=3) prism(tread,step*building.height/5,(step+1)*building.height/5,
           "#9a9b92",step%2?"#b5b3a5":"#c6c3b3");
       }
+      const stage=campus.trackStage;
+      prism(stage.shape,0,stage.top,"#858987","#b4b7af");
+      for(const wall of stage.walls) prism(wall,stage.top,stage.roofHeight,"#858c8c","#9ea39f");
+      box(269.8,1003.8,26,40.4,stage.roofHeight-1,stage.roofHeight,"#a59081","#b7b9b4");
+      for(let i=0;i<6;i++) {
+        const z=stage.top+i*1.48+.34;
+        quad([274.015,1008,z],[274.015,1040,z],[274.015,1040,z+.045],[274.015,1008,z+.045],"#707878");
+      }
+      for(const y of [1009,1039]) box(292.4,y-.10,.20,.20,stage.top,stage.top+1.18,"#6a7470");
+      strip([[292.5,1009],[292.5,1039]],.13,stage.top+1.18,"#6a7470",false);
       continue;
     }
     const entryTarget = building.entry || {
-      classroom:[649,581], library:[679,963], hall:[515,1398],
+      library:[679,963],
       canteen:[861,973], activity:[891,1067], second:[868,785],
-      expert:[710,436], "teaching-admin":[864,293], history:[765,1115],
-      physics:[354,814], auditorium:[805,733], cafe:[594,712], fifth:[949,365],
-      "osm-1135310337":[788,783],"research-a":[802,1342],research:[951,1344],"research-c":[935,1440]
+      "teaching-admin":[864,293], history:[765,1115],
+      physics:[354,814], auditorium:[805,733], cafe:[594,712],
+      "research-a":[802,1342],research:[951,1344],"research-c":[935,1440]
     }[building.id];
     let entry, best=Infinity;
-    if (building.id==="library") entry={edge:campus.libraryFront.edge,center:.5};
+    if (building.id==="classroom") entry=[{edge:4,center:.5},{edge:20,center:.5,secondary:true}];
+    else if (building.id==="expert") entry=building.entry;
+    else if (building.id==="osm-1135310337") entry=campus.juniorEntry;
+    else if (building.id==="old-library") entry=campus.officeEntry;
+    else if (building.id==="hall") entry=campus.hallFront;
+    else if (building.id==="library") entry={edge:campus.libraryFront.edge,center:.5};
     else if (entryTarget) building.shape.forEach(([x,y],i,shape) => {
       const [nx,ny]=shape[(i+1)%shape.length];
       const dx=nx-x,dy=ny-y,len=Math.hypot(dx,dy);
@@ -1022,17 +1177,36 @@ function makeWalkMesh() {
       prism(building.shape,2.4,3,"#c9cfc4","#e2e5d8");
     }
     const residential=["housing","dorm","residential","apartments","dormitory"].includes(building.kind);
-    const facade=building.id==="library" ? {...style,grandEntry:true} :
+    const facade=building.id==="hall" ? {...style,hallEntry:true} :
+      building.id==="library" ? {...style,grandEntry:true} :
       building.id==="fifth" ? {...style,teachingEntry:true} :
-      building.id==="classroom" ? {...style,teachingEntry:true} : residential ? {
+      building.id==="classroom" ? {...style,teachingEntry:true,topTrim:.48,brickToGround:true} :
+      building.id==="old-library" ? {...style,officeEntry:true,brickToGround:true} :
+      building.id==="osm-1135310337" ? {...style,juniorEntry:true} : residential ? {
         trim:"#d9d7c4",glass:"#728982",spacing:6.5,windowWidth:3.7,
-        floors:building.levels||Math.max(1,Math.round(building.height/(3.2*eastOSM.unit))),...style,balconies:!style.fins
+        floors:building.levels||Math.max(1,Math.round(building.height/(3.2*eastOSM.unit))),...style,balconies:style.balconies??!style.fins
       } : style;
-    prism(building.shape,overWater?3:0,building.baseHeight??building.height,style.wall||wall,style.roof||roof,facade,entry);
+    if(building.firstFloor) prism(building.shape,0,building.firstFloor,style.base,style.wall);
+    prism(building.shape,overWater?3:(building.firstFloor??0),building.baseHeight??building.height,style.wall||wall,style.roof||roof,facade,entry);
+    if(building.id==="old-library") for(const {shape,top} of campus.officeEntry.steps) prism(shape,0,top,"#858a81","#b9bcb1");
+    if(building.id==="osm-1135310337") {
+      const steps=campus.juniorEntry.steps;
+      for(const {shape,top} of steps) prism(shape,0,top,"#898e87","#b1b3a9");
+      for(const side of [0,1]) {
+        const landing=steps.at(-1);
+        const a=steps[0].shape[side], b=landing.shape[side], end=landing.shape[3-side];
+        for(const lift of [.48,.83,1.15]) quad([...a,lift],[...b,2.5+lift],[...b,2.55+lift],[...a,lift+.05],"#6b7b77");
+        for(const lift of [.48,.83,1.15]) strip([b,end],.075,landing.top+lift,"#6b7b77",false);
+        for(const step of steps.filter((_,i)=>i%3===0||i===steps.length-1)) {
+          const [x,y]=step.shape[side];
+          box(x-.055,y-.055,.11,.11,step.top,step.top+1.15,"#6b7b77");
+        }
+      }
+    }
     for (const {shape,top,style} of building.masses||[]) {
       prism(shape,building.baseHeight,top,style.wall,style.roof,style.floors?style:null);
       parapet(shape,top,style.trim||style.wall,style.roof);
-      if (!style.floors) continue;
+      if (!style.floors || style.roofEquipment===false) continue;
       if (building.id==="osm-1135310338" && top<building.height) {
         const skylight=[[919,1545],[943,1545],[944,1558],[920,1558]];
         const center=[931.5,1551.5];
@@ -1070,12 +1244,9 @@ function makeWalkMesh() {
     }
     if (building.id==="hall") {
       const z=building.height;
-      const roofline=[[461.4,1338.1],[558.1,1334.2],[562.1,1406.2],[464.3,1410.4]];
-      prism(roofline,z-.28,z+.24,"#9caaa9",style.roof);
-      pitchedRoof(roofline,z+.24,5.4,style.roof,style.wall);
-      box(491,1405.7,37,5.7,4.5,5.25,"#9da7a3","#c4cbc4");
-      for(const x of [493,525]) box(x,1409.5,.95,.9,0,4.5,"#d3d0c4");
-      for(let i=0;i<4;i++) box(486+i*.85,1412-i*.85,46-i*1.7,.86,0,.24*(i+1),"#a4a39a","#c6c1b4");
+      const roofline=building.shape.map(([x,y])=>[building.x+(x-building.x)*1.055,building.y+(y-building.y)*1.05]);
+      prism(roofline,z-.65,z+.65,"#c2b8a9",style.roof);
+      for(const {shape,top} of campus.hallFront.steps) prism(shape,0,top,"#aaa69b","#c9c3b5");
     } else if (building.id==="history" || building.name==="行政楼") {
       const z=building.height;
       const main=building.id==="history"?[[727,1091],[805,1085],[805,1100],[733,1104]]:
@@ -1085,6 +1256,8 @@ function makeWalkMesh() {
         [[707,979,12,28],[801,974,10,25]]) {
         pitchedRoof(campus.box(...wing),z,2.8,style.roof,style.wall);
       }
+    } else if (style.pitchedRise && building.shape.length===4) {
+      pitchedRoof(building.shape,building.height,style.pitchedRise,style.roof,style.wall);
     } else if (building.height>8 && !overWater) {
       const z=building.baseHeight??building.height, rim=style.trim||"#d9d4c2";
       const shape=building.shape;
@@ -1104,7 +1277,11 @@ function makeWalkMesh() {
       box(x-13,y-3,26,6,building.height,building.height+3,base,roof);
     }
   }
-  for (const {x,y,r,cherry,evergreen,plane,heightScale=1} of campus.trees) {
+  for (const {x,y,r,cherry,evergreen,plane,whiteBase,heightScale=1} of campus.trees) {
+    if (whiteBase) {
+      box(x-2.65,y-2.5,5.3,5,0,.29,"#a19d8e","#718653");
+      prism(circle(x,y,r*.124,r*.124,6),.29,1.45,"#dfdbcd","#dfdbcd");
+    }
     const wood = plane?"#b6ad95":"#7d7156";
     const vertical=r*heightScale;
     if (plane) {

@@ -30,11 +30,20 @@ const walk = (() => {
     north:[780,212,779,233], west:[start.x,start.y,westX,westY,start.pitch],
     south:[853,1579,860,1601], track:[431,1036,360,1025],
     auditorium:[745,708,802,711,.075], research:[921,1370,900,1319,.24],
-    "old-library":[659,827,663,875], fifth:[949,365,949,319], "fifth-bike-shelter":[858,377,833,372],
+    hall:[597,1370,...campus.hallFront.point,.08], expert:[765.5,392.65,722,401,.08],
+    "old-library":[...campus.officeEntry.view,...campus.officeEntry.target,.08], fifth:[879,342,893.755,319.615], "fifth-bike-shelter":[858,377,833,372],
     east:[1139,347,1168,346], "old-north":[634,370,631,346],
     "small-south":[347,1529,347,1551], "west-parking":[404,795,474,800],
     "osm-285860077":[244,1541,244,1516],"osm-1135310349":[317,1511,316,1490],
     "osm-1135310341":[715,1598,715,1562,.2],"osm-1135310338":[861,1538,892,1547,.13],
+    "osm-1135310357":campus.kindergarten.signView,
+    "osm-1135310337":[...campus.juniorEntry.view,...campus.juniorEntry.target,.1],
+    "osm-306371643":[542.3,campus.busDepot.signCenter[1],...campus.busDepot.signCenter.slice(0,2),
+      Math.atan2(campus.busDepot.signCenter[2]-eyeHeight,542.3-campus.busDepot.signCenter[0])],
+    canteen:[861,975,869,953,.1], second:[876,852,876,829,.1],
+    "osm-267646979":[1098,355,1098,332,.12],
+    "osm-270334649":[534,1195,534,1175,.1],
+    "osm-270334648":[548,1295,548,1274,.1],
     activity:[824,1023,894,1023,.10], "activity-food":[857,1023,894,1023,.14],
     cafe:[593,726,594,704,.04], motto:[717,701.73,731.58,701.73,.03],
     "qian-linzhao":[721.5,772.47,739.32,772.47,.03],
@@ -53,7 +62,7 @@ const walk = (() => {
   const buildingShapes = campus.buildings.map(building => building.shape);
   const trunks = campus.trees.map(({x,y,r,evergreen,plane,heightScale=1}) =>
     [x,y,r*.12+.75,r*heightScale*(evergreen ? 3.1 : plane ? 2.78 : 2.42)]);
-  const roofRise = {classroom:2,library:1,history:4,"osm-271365631":4,canteen:3,hall:5.64};
+  const roofRise = {classroom:2,library:1,history:4,"osm-271365631":4,canteen:3,hall:.65};
   const bounds = shape => ({
     shape, minX:Math.min(...shape.map(([x])=>x))-pad, maxX:Math.max(...shape.map(([x])=>x))+pad,
     minY:Math.min(...shape.map(([,y])=>y))-pad, maxY:Math.max(...shape.map(([,y])=>y))+pad
@@ -61,8 +70,8 @@ const walk = (() => {
   const solids = [...buildingShapes, ...campus.waters].map(bounds);
   const props = campus.obstacles.map(({shape,top})=>({...bounds(shape),top}));
   const elevated=[campus.activityModel.upper,...campus.activityModel.decks,...campus.researchLinks,
-    ...campus.activityModel.stairs.flatMap(flight=>flight.steps),...campus.libraryFront.steps];
-  const stairBounds=[...campus.activityModel.stairs,...campus.libraryFront.steps].map(({shape})=>bounds(shape));
+    ...campus.activityModel.stairs.flatMap(flight=>flight.steps),...campus.libraryFront.steps,...campus.hallFront.steps,...campus.juniorEntry.steps,...campus.officeEntry.steps];
+  const stairBounds=[...campus.activityModel.stairs,...campus.libraryFront.steps,...campus.hallFront.steps,...campus.juniorEntry.steps,...campus.officeEntry.steps].map(({shape})=>bounds(shape));
   const atStair=(x,y)=>stairBounds.some(stair=>touches(stair,x,y));
   const railClearance=.26;
   const railingBounds=bounds(campus.activityModel.rails.flat());
@@ -120,7 +129,8 @@ const walk = (() => {
         if (building.id==="activity") return;
         const rim=building.osmKind!=="grandstand" && building.id!=="auditorium" && building.height>8 ? .46 : 0;
         const equipment=!building.style && building.height>16 ? 1.2 : 0;
-        floor=Math.max(floor,(building.baseHeight??building.height)+Math.max(roofRise[building.id]||0,rim,equipment,building.towerLevels?2.2:0));
+        floor=Math.max(floor,(building.baseHeight??building.height)+Math.max(roofRise[building.id]||0,rim,equipment,
+          building.style?.pitchedRise||0,building.towerLevels?2.2:0));
         for(const mass of buildings[i].masses||[]) if(touches(mass,x,y)) floor=Math.max(floor,mass.height+.46);
       } else {
         const onBridge = campus.pavilionWalk.some((a,j,points) => j && segmentDistance(x,y,points[j-1],a) < 2.1)
@@ -214,12 +224,20 @@ const walk = (() => {
       const distance=Math.hypot(candidate.x-place.x,candidate.y-place.y);
       if (distance<closest) { closest=distance; sign=candidate; }
     }
-    const [x,y,tx,ty,pitch=.06] = anchors[place.id] || [place.x,place.y+15,sign?.x??place.x,sign?.y??place.y];
-    for (let r=0;r<=90;r+=3) {
+    const anchor=anchors[place.id];
+    const [x,y,tx,ty,pitch=.06] = anchor || [place.x,place.y+30,sign?.x??place.x,sign?.y??place.y];
+    const building=buildingIds.has(place.id)&&place.id!=="osm-1135310357";
+    const preferredSetback=place.id==="canteen"?12*eastOSM.unit:12;
+    const searches=building ? [{setback:preferredSetback,paved:!anchor,radius:42},{setback:preferredSetback,paved:false,radius:66},
+      {setback:7.5,paved:false,radius:135}] : [{setback:7.5,paved:false,radius:135}];
+    for(const {setback,paved,radius} of searches) for (let r=0;r<=radius;r+=3) {
       for (let i=0;i<(r===0?1:16);i++) {
         const angle = i*Math.PI/8;
         const px=x+Math.cos(angle)*r, py=y+Math.sin(angle)*r;
-        if (!canOccupy(px,py) || Math.hypot(px-tx,py-ty)<3) continue;
+        if (!canOccupy(px,py) || Math.hypot(px-tx,py-ty)<3 || (paved&&!campus.isPaved(px,py))) continue;
+        if (buildings.some(({shape,minX,maxX,minY,maxY})=>
+          px>=minX-setback && px<=maxX+setback && py>=minY-setback && py<=maxY+setback &&
+          shape.some((a,j)=>segmentDistance(px,py,a,shape[(j+1)%shape.length])<setback))) continue;
         pose = {x:px,y:py,z:eyeHeight,yaw:Math.atan2(tx-px,py-ty),pitch};
         fallSpeed = null;
         requestFrame();
